@@ -92,19 +92,16 @@ class Client:
         self.sock.connect((self.host, self.port))
         print(f'Successfully connected to {self.host}:{self.port}...')
 
-        # try:
-        receive = Receive(self.sock, self.type, self)
-        receive.start()
-        # if self.type == 'master':
-        #     send = Send(self.sock)
-        #     send.start()
-        # except KeyboardInterrupt:
-        #     print("caught keyboard interrupt, exiting")
-        # except Exception as e:
-        #     print(f'ran into an error:\n{e}')
-        # finally:
-        #     self.sock.close()
-        #     os._exit(0)
+        try:
+            receive = Receive(self.sock, self.type, self)
+            receive.start()
+            if self.type == 'master':
+                send = Send(self.sock)
+                send.start()
+        except KeyboardInterrupt:
+            print("caught keyboard interrupt, exiting")
+            self.sock.close()
+            os._exit(0)
 
     def set_authenticated(self) -> None:
         self.authenticated = True
@@ -112,10 +109,6 @@ class Client:
         if self.type == 'master':
             send = Send(self.sock)
             send.start()
-
-
-def main() -> None:
-    pass
 
 
 if __name__ == '__main__':
