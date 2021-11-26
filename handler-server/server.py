@@ -201,10 +201,11 @@ class Server():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Handler Server')
-    parser.add_argument('host', help='Interface the server listens at')
+    parser.add_argument('-a', metavar='HOST_ADDRESS', type=str,
+                        default='', help='Interface the server listens at')
     parser.add_argument('-p', metavar='PORT', type=int, default=8080,
                         help='TCP port (default 8080)')
     args = parser.parse_args()
 
-    server = Server(args.host, args.p)
+    server = Server(args.a, args.p)
     server.start()
