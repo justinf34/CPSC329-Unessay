@@ -145,12 +145,16 @@ class Client:
             os._exit(0)
         
 
+        return
+
     def set_authenticated(self) -> None:
         self.authenticated = True
         print('Successfully authorized')
         if self.type == 'master':
             send = Send(self.sock)
             send.start()
+
+        return
 
 
 if __name__ == '__main__':
