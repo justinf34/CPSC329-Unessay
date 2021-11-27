@@ -94,15 +94,17 @@ class Server():
         except Exception as e:
             print(e)
             self._disconnect_wrapper(sock)
-        
+
         return
 
     def _iam_handler(self, sock: socket.socket, body: str) -> None:
         if body == 'master':
             self.master_client = sock
             response = 'iam:success:master identified'
+            if not self.master_client:
+                response = 'iam:error:master already exist'
         elif body == 'bot':
-            # Generate socket infor
+            # Generate client socket information
             sock_addr = sock.getpeername()
             curr_time = str(int(time.time()))
             bot_info = '' + curr_time + ';' + \
