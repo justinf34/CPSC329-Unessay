@@ -25,7 +25,7 @@ class Bot():
 		
 	def start(self):
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-		self.sock.connect((master_server, master_port))
+		self.sock.connect((self.master_server, self.master_port))
 		self.sock.listen()
 		print(f"connected to master server at {self.master_server}:{self.master_port}")    
 
