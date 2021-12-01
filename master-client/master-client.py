@@ -3,10 +3,10 @@ import socket
 import argparse
 import os
 import sys
+import time
 
 RECV_BUFFER = 4096
 ENCODING = 'utf-8'
-
 
 class Send(threading.Thread):
 
@@ -54,7 +54,11 @@ class Send(threading.Thread):
 
     def disconnect(self):
         self.sock.sendall('disconnect:'.encode(ENCODING))
+        time.sleep(1)
+        self.sock.close()
         print('Disconnecting...')
+        os._exit(0)
+
         
 
 class Receive(threading.Thread):
