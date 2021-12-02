@@ -218,9 +218,9 @@ class Server():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Handler server for performing DDoS attacks')
-    parser.add_argument('-a', '--address', type=str,
+    parser.add_argument('-a', type=str,
                         default='', help='interface the server listens at')
-    parser.add_argument('-p', '--port', type=int, default=8080,
+    parser.add_argument('-p', type=int, default=8080,
                         help='TCP port (default 8080)')
     args = parser.parse_args()
 
