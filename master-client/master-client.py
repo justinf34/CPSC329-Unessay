@@ -144,6 +144,7 @@ class Client:
         self.type = type
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.authenticated = False
+        self.botlist = ''
 
     def start(self) -> None:
         print(f'Connecting to {self.host}:{self.port}...')
@@ -156,6 +157,9 @@ class Client:
             if self.type == 'master':
                 send = Send(self.sock)
                 send.start()
+            while True:
+                if receive.botlist:
+                    self.botlist = receive.botlist
         except KeyboardInterrupt:
             print("caught keyboard interrupt, exiting")
             self.sock.close()
@@ -163,6 +167,11 @@ class Client:
         
 
         return
+
+
+    def getBotList(self):
+        print(f'Bots: {self.botlist}')
+
 
     def set_authenticated(self) -> None:
         self.authenticated = True
