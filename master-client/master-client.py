@@ -87,7 +87,7 @@ class Receive(threading.Thread):
         self.sock = sock
         self.client_type = client_type
         self.client = client
-        self.botlist = '' 
+        self.botlist = ''
 
     def run(self) -> None:
         while True:
@@ -154,6 +154,7 @@ class Client:
         self.type = type
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.authenticated = False
+        self.receive = None
         self.botlist = ''
 
     def start(self) -> None:
@@ -162,14 +163,12 @@ class Client:
         print(f'Successfully connected to {self.host}:{self.port}...')
 
         try:
-            receive = Receive(self.sock, self.type, self)
-            receive.start()
+            self.receive = Receive(self.sock, self.type, self)
+            self.receive.start()
             if self.type == 'master':
                 send = Send(self.sock)
                 send.start()
-            while True:
-                if receive.botlist:
-                    self.botlist = receive.botlist
+
         except KeyboardInterrupt:
             print("caught keyboard interrupt, exiting")
             self.sock.close()
@@ -180,7 +179,7 @@ class Client:
 
 
     def getBotList(self):
-        print(f'Bots: {self.botlist}')
+        print(f'Bots: {self.receive.botlist}')
 
 
     def set_authenticated(self) -> None:
