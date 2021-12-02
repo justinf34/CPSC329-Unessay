@@ -58,8 +58,10 @@ class Send(threading.Thread):
         self.sock.close()
         print('Disconnecting...')
         os._exit(0)
-
-        
+    
+    def listbot(self):
+        self.cock.sendall('listbot:'.encode(ENCODING))
+        print('Client: requesting bot list')
 
 class Receive(threading.Thread):
 
