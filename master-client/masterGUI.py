@@ -10,14 +10,12 @@ window.botcounter = 0
 
 connected = False
 running = True
-botlist = ["111", "101", "0.0.0"]
+lighton = False
+botlist = []
 
 frame_a = tk.Frame()
 
 frame_b = tk.Frame(width=80)
-
-frame_e = tk.Frame(master=window, width=400, height=100, bg="blue")
-# frame_e.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
 
 frame_c = tk.Frame(master=window, width=400, height=400, bg="blue")
 frame_c.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
@@ -42,8 +40,13 @@ def connect():
         lightupdate.set(1)
         global send
         send = master_client.Send(client.sock)
-    print(ip)
+        global receive
+        receive = master_client.Receive(client.sock, client.type, client)
+       # global botlist
+        #botlist = client.getbots()
 
+
+    print(ip)
 
 def quit():
     if connected == True:
@@ -67,6 +70,7 @@ def launchattack():
 def stopattack():
     if connected == True:
         send.stopattk()
+
 
 #==================================================================================
 #Button Creation
@@ -162,8 +166,9 @@ def handle_bots(*args):
     for i in list:
         i.destroy()
     for i in botlist:
+        j = i.split(";")
         label1 = tk.Label(master=bots, relief=tk.RAISED, borderwidth=1, fg="green",
-                          text=f"BOT {i}\nIP: {i}\nPort: 25565\nJoined: 00.00")
+                          text=f"BOT {i}\nIP: {j[1]}\nPort: {j[2]}\nJoined: {j[0]}")
         label1.pack(padx=5, pady=5)
 
 
@@ -193,15 +198,22 @@ frame_c.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
 frame_a.pack()
 frame_b.pack(fill=tk.Y, expand=True)
 
+
 #replacement of window.mainloop()
 while running == True:
     if connected == True:
-        handle_light
-        oldlist = botlist
-       # botlist = master_client.botlist
-        if botlist != oldlist:
-            botupdate.set(1)
-            continue
+        if lighton == False:
+            handle_light
+            lighton = True
+        #oldlist = botlist
+        send.listbot()
+        time.sleep(10)
+        botlist = receive.botlist
+        print(botlist)
+        #time.sleep(10)
+        #if botlist != oldlist:
+            #botupdate.set(1)
+        botupdate.set(1)
     window.update_idletasks()
     window.update()
     time.sleep(0.01)
