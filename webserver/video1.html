@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CPSC 329 Unessay server!</title>
+  <style>
+    .button {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 4px 2px;
+      cursor: pointer;
+    }
+      #rectangle {
+        height: 50px;
+        width: 100px;
+        background-color: #eeff00;
+      border: 5px solid black;
+  
+      }
+    .rating input {
+     display: none; 
+     position: absolute;
+    }
+    .rating > label {
+      width: 30px;
+      height: 30px;
+      font-family: Verdana;
+      font-size: 30px;
+      color: black;
+      border: 1px solid dodgerblue;
+    }
+    .rating label::before {
+      content: '\2606';
+      position: relative;
+      top: 0px;
+      line-height: 45px;
+    }
+    .rating label:checked ~ label:before {
+      content: '\2605';
+    }
+    </style>
+
+<link href="video-js.css" rel="stylesheet">
+<link rel="shortcut icon" href="#" />
+</head>
+<body>
+  <h2>This is the first video!</h2>
+
+  <a href="index.html">
+    <button class="button">Home Page</button>
+  </a>
+  <br>
+
+  <video id=example-video width=600 height=300 class="video-js vjs-default-skin" controls="true"> </video>
+
+  <script src="video.js"></script>
+  <script>
+    var player = videojs('example-video');
+    player.src({ src: './files/video/earth.mp4', type: 'video/mp4'});
+    player.play();
+  </script>
+  
+  <a href="./files/video/earth.mp4" download>
+    <button class="button">Download This Video</button>
+  </a>
+
+  <a href="video5.html">
+    <button class="button">Previous Video</button>
+  </a>
+
+  <a href="video2.html">
+    <button class="button">Next Video</button>
+  </a>
+
+<h3>Leave a comment!</h3>
+<iframe name="blank" style="display:none;"></iframe>
+<form method="post" target="blank">
+
+  <div>
+    <label for="fname">Username:</label> <br>
+    <input type="text" name="Name" placeholder="Enter your username" pattern="^[a-zA-Z0-9 ]*$" maxlength="32" type="text">
+    <br>
+    <label for="fname">Comment:</label><br>
+    <input type="text" name="Comment" placeholder="Enter your comment" pattern="^[a-zA-Z0-9 ]*$" type="text" maxlength="150" required>
+    <br>
+  </div>
+
+  <div class="rating">
+    <input type="radio" id="1-star" name="s" value="1">
+    <label for="1-star"></label>
+    
+    <input type="radio" id="2-star" name="s" value="2">
+    <label for="2-star"></label>
+    
+    <input type="radio" id="3-star" name="s" value="3" checked="true">
+    <label for="3-star"></label>
+    
+    <input type="radio" id="4-star" name="s" value="4">
+    <label for="4-star"></label>
+
+    <input type="radio" id="5-star" name="s" value="5">
+    <label for="5-star"></label>
+    <br>
+  </div>
+
+  <input type="submit" value="Submit">
+
+</form>
+
+</body>
+</html>
