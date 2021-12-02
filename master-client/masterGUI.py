@@ -42,8 +42,8 @@ def connect():
         send = master_client.Send(client.sock)
         global receive
         receive = master_client.Receive(client.sock, client.type, client)
-       # global botlist
-        #botlist = client.getbots()
+        global botlist
+        botlist = client.botlist
 
 
     print(ip)
@@ -208,7 +208,7 @@ while running == True:
         #oldlist = botlist
         send.listbot()
         time.sleep(10)
-        botlist = receive.botlist
+        botlist = client.botlist
         print(botlist)
         #time.sleep(10)
         #if botlist != oldlist:
