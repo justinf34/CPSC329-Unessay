@@ -27,7 +27,6 @@ def upload():
     if connected == True:
         send.targetip = target
         send.changeip()
-    print(target)
 
 def connect():
     ip = IRCip.get()
@@ -41,18 +40,12 @@ def connect():
         lightupdate.set(1)
         global send
         send = master_client.Send(client.sock)
-        global receive
-        receive = master_client.Receive(client.sock, client.type, client)
         global botlist
         botlist = master_client.botList
-
-
-    print(ip)
 
 def quit():
     if connected == True:
         send.disconnect()
-
     global running
     running = False
     window.destroy()
@@ -170,12 +163,10 @@ def handle_bots(*args):
         form1 = botlist.split(", ")
         botnum = 1
         for j in form1:
-            print(j)
             form2 = j.split(";")
             form4 = []
             for k in form2:
                 form3 = k.replace(",", "")
-                print(form3)
                 form4.append(form3)
             tformat = int(form4[0])
             tformat = datetime.utcfromtimestamp(tformat).strftime('%Y-%m-%d %H:%M:%S')
@@ -220,9 +211,8 @@ while running == True:
             lighton = True
         #oldlist = botlist
         send.listbot()
-        time.sleep(3)
+        time.sleep(2)
         botlist = master_client.botList
-        print(botlist)
         #time.sleep(10)
         #if botlist != oldlist:
             #botupdate.set(1)
