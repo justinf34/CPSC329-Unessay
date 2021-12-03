@@ -75,10 +75,10 @@ class Server():
         return
 
     def _request_router(self, sock: socket.socket) -> None:
-        sock_addr = sock.getpeername()
-        recv_data = sock.recv(RECV_BUFFER).decode(ENCODING)
-        print(f'received request from ${sock_addr}')
         try:
+            sock_addr = sock.getpeername()
+            recv_data = sock.recv(RECV_BUFFER).decode(ENCODING)
+            print(f'received request from ${sock_addr}')
             if recv_data:
                 try:
                     req_type, req_body = recv_data.split(':')
@@ -186,9 +186,6 @@ class Server():
 
     def _disconnect_wrapper(self, sock: socket.socket) -> None:
         self.socket_list.remove(sock)
-        sock_addr = sock.getpeername()
-        sock_addr_str = '' + sock_addr[0] + str(sock_addr[1])
-
         # bot agent disconnect
         if sock in self.bot_agents:
             del self.bot_agents[sock]
@@ -197,13 +194,13 @@ class Server():
                 bots = self._get_bot_list()
                 self.master_client.sendall(
                     f'listbot:{bots}'.encode(ENCODING))
-            print(f'bot agent {sock_addr_str} disconnected')
+            print(f'bot agent disconnected')
         # master client disconnect
         elif self.master_client == sock:
             self.master_client = None
-            print(f'master client {sock_addr_str} disconnected')
+            print(f'master client disconnected')
         else:
-            print(f'client {sock_addr_str} disconnected')
+            print(f'unauthorized client disconnected')
 
         return
 
