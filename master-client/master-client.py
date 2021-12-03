@@ -82,7 +82,6 @@ stopattk: ; Terminates attack if it is being executed\ndisconnect: ; Disconnects
 
 
     def disconnect(self):
-        self.sock.sendall('disconnect:'.encode(ENCODING))
         time.sleep(1)
         self.sock.close()
         print('Disconnecting...')
