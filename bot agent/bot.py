@@ -212,7 +212,7 @@ class SlowLorisAttack():
     def __init__(self, target: str, port: int):
         self.target = target
         self.port = port
-        self.regualr_headers = [ "User-agent: Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.0",
+        self.regular_headers = [ "User-agent: Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.0",
                     "Accept-language: en-US,en,q=0.5"]
 
 
