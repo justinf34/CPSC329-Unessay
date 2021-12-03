@@ -143,8 +143,6 @@ bots.bind(
 )
 canvas.create_window((0, 0), window=bots, anchor="nw")
 canvas.pack(fill=tk.Y, expand=True)
-buttonQ = tk.Button(master=frame_b, text="Quit", width=10, bg="red", command=quit)
-buttonQ.pack(side=tk.BOTTOM)
 #==================================================================================
 
 #event handlers
@@ -159,6 +157,10 @@ def handle_bots(*args):
     list = bots.pack_slaves()
     for i in list:
         i.destroy()
+    send.listbot()
+    time.sleep(2)
+    global botlist
+    botlist = master_client.botList
     if len(botlist) != 0:
         form1 = botlist.split(", ")
         botnum = 1
@@ -174,6 +176,11 @@ def handle_bots(*args):
             text=f"BOT {botnum} \nIP: {form4[1]}\nPort: {form4[2]}\nJoined: {tformat}")
             label1.pack(padx=5, pady=5)
             botnum += 1
+
+buttonB = tk.Button(master=frame_b, text="Update Bots", width=10, command=handle_bots)
+buttonQ = tk.Button(master=frame_b, text="Quit", width=10, bg="red", command=quit)
+buttonQ.pack(side=tk.BOTTOM)
+buttonB.pack(side=tk.BOTTOM)
 
 
 botupdate = tk.IntVar()
@@ -210,13 +217,13 @@ while running == True:
             handle_light
             lighton = True
         #oldlist = botlist
-        send.listbot()
-        time.sleep(2)
-        botlist = master_client.botList
+        #send.listbot()
+        #time.sleep(2)
+        #botlist = master_client.botList
         #time.sleep(10)
         #if botlist != oldlist:
             #botupdate.set(1)
-        botupdate.set(1)
+        #botupdate.set(1)
     window.update_idletasks()
     window.update()
     time.sleep(0.01)
