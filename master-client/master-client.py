@@ -10,6 +10,19 @@ ENCODING = 'utf-8'
 
 botList = []
 
+logString = ''
+
+
+def addToLog(s):
+    global logString 
+    logString = logString + str(s)
+
+def writeLog():
+    global logString
+    print('Writing Log...')
+    with open("log.txt","w") as f:
+        f.write(logString)
+
 
 class Send(threading.Thread):
 
@@ -73,6 +86,7 @@ stopattk: ; Terminates attack if it is being executed\ndisconnect: ; Disconnects
         time.sleep(1)
         self.sock.close()
         print('Disconnecting...')
+        writeLog()
         os._exit(0)
 
     
@@ -106,6 +120,7 @@ class Receive(threading.Thread):
                 print('Disconnected from server')
                 print('Quitting...')
                 self.sock.close()
+                writeLog()
                 os._exit(0)
 
     def _req_handler(self, recv_data: bytes) -> None:
@@ -123,6 +138,7 @@ class Receive(threading.Thread):
                 else:
                     print('Cannot be authenticated.')
                     print('Quitting...')
+                    writeLog()
                     self.sock.close()
                     os._exit(0)
             elif req_type == 'listbot':
@@ -162,6 +178,10 @@ class Client:
         self.sock.connect((self.host, self.port))
         print(f'Successfully connected to {self.host}:{self.port}...')
 
+        curr_time = str(int(time.time()))
+        addToLog(f'[{curr_time}] : Connected to {self.host}:{self.port}')
+
+
         try:
             self.receive = Receive(self.sock, self.type, self)
             self.receive.start()
@@ -172,6 +192,7 @@ class Client:
         except KeyboardInterrupt:
             print("caught keyboard interrupt, exiting")
             self.sock.close()
+            writeLog()
             os._exit(0)
         
 
