@@ -225,7 +225,9 @@ class Server():
 
     def _send_state(self, sock: socket.socket) -> None:
         sock.send(f'changeip:{self.target_address}'.encode(ENCODING))
+        time.sleep(.1)
         sock.send(f'changeattk:{self.attk_type}'.encode(ENCODING))
+        time.sleep(.1)
         sock.send(f'startattk:{self.attacking}'.encode(ENCODING))
         return
 

