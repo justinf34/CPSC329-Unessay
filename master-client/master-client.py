@@ -8,7 +8,7 @@ import time
 RECV_BUFFER = 4096
 ENCODING = 'utf-8'
 
-botList = []
+botList = ""
 
 logString = ''
 
