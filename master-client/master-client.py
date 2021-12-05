@@ -15,7 +15,7 @@ logString = ''
 
 def addToLog(s):
     global logString 
-    logString = logString + str(s)
+    logString = logString + str(s) + '\n'
 
 def writeLog():
     global logString
@@ -56,6 +56,8 @@ stopattk: ; Terminates attack if it is being executed\ndisconnect: ; Disconnects
                 os._exit(0)
             else:
                 self.sock.sendall(message.encode(ENCODING))
+                curr_time = str(int(time.time()))
+                addToLog(f'[{curr_time}] : Sent message: {message}')
                 if message == '^C':
                     print('message is control')
                 print(f'Sent {message} to server')            
@@ -64,27 +66,35 @@ stopattk: ; Terminates attack if it is being executed\ndisconnect: ; Disconnects
     def changeip(self):
         self.sock.sendall(f'changeip:{self.targetip}'.encode(ENCODING))
         print(f'Client: sending changeip:{self.targetip}')
-
+        curr_time = str(int(time.time()))
+        addToLog(f'[{curr_time}] : changeip sent')
 
     def changeattk(self):
         self.sock.sendall(f'changeattk:{self.attktype}'.encode(ENCODING))
         print(f'Client: sending changeattk:{self.attktype}')
-
+        curr_time = str(int(time.time()))
+        addToLog(f'[{curr_time}] : changeattk sent')
 
     def startattk(self):
         self.sock.sendall('startattk:'.encode(ENCODING))
         print('Client: sending iam')
-    
+        curr_time = str(int(time.time()))
+        addToLog(f'[{curr_time}] : iam sent')
 
     def stopattk(self):
         self.sock.sendall('stopattk:'.encode(ENCODING))
         print('Client: sending stopattk')
-
+        curr_time = str(int(time.time()))
+        addToLog(f'[{curr_time}] : Stopattk Sent')
 
     def disconnect(self):
         time.sleep(1)
-        self.sock.close()
         print('Disconnecting...')
+        curr_time = str(int(time.time()))
+        addToLog(f'[{curr_time}] : Client disconnected')
+        self.sock.close()
+        addToLog(f'[{curr_time}] : Socket Closed')
+        addToLog(f'[{curr_time}] : Terminated Client')
         writeLog()
         os._exit(0)
 
@@ -92,6 +102,8 @@ stopattk: ; Terminates attack if it is being executed\ndisconnect: ; Disconnects
     def listbot(self):
         self.sock.sendall('listbot:'.encode(ENCODING))
         print('Client: requesting bot list')
+        curr_time = str(int(time.time()))
+        addToLog(f'[{curr_time}] : Requested Bot List')
 
 class Receive(threading.Thread):
 
@@ -108,8 +120,13 @@ class Receive(threading.Thread):
                 recv_data = self.sock.recv(RECV_BUFFER)
             except ConnectionResetError:
                 print("An existing connection was forcibly closed by the remote host")
+                curr_time = str(int(time.time()))
+                addToLog(f'[{curr_time}] : Connection forcibly closed by remote host')
                 print('Quiting...')
                 self.sock.close()
+                addToLog(f'[{curr_time}] : Socket Closed')
+                addToLog(f'[{curr_time}] : Terminated Client')
+                writeLog()
                 os._exit(0)
 
 
@@ -117,8 +134,12 @@ class Receive(threading.Thread):
                 self._req_handler(recv_data)
             else:
                 print('Disconnected from server')
+                curr_time = str(int(time.time()))
+                addToLog(f'[{curr_time}] : Disconnected from server')
                 print('Quitting...')
                 self.sock.close()
+                addToLog(f'[{curr_time}] : Socket Closed')
+                addToLog(f'[{curr_time}] : Terminated Client')
                 writeLog()
                 os._exit(0)
 
@@ -136,7 +157,11 @@ class Receive(threading.Thread):
                     self.client.set_authenticated()
                 else:
                     print('Cannot be authenticated.')
+                    curr_time = str(int(time.time()))
+                    addToLog(f'[{curr_time}] : Server authentification failed')
                     print('Quitting...')
+                    addToLog(f'[{curr_time}] : Socket closed')
+                    addToLog(f'[{curr_time}] : Terminated Client')
                     writeLog()
                     self.sock.close()
                     os._exit(0)
@@ -148,13 +173,17 @@ class Receive(threading.Thread):
                     botList = self.botlist
 
                     print(f'Bots:\n{self.botlist}')
+                    curr_time = str(int(time.time()))
+                    addToLog(f'[{curr_time}] : Botlist Recieved')
                 else:
                     print("No bots connected")
+                    curr_time = str(int(time.time()))
+                    addToLog(f'[{curr_time}] : Botlist Recieved: No bots connected')
+                    
 
             else:
                 print(
                     f'\rReceived command/response -> {recv_data_str}')
-                # TODO: client custom client handler code here
 
         except ValueError as e:
             print('Could not parse request')
@@ -190,7 +219,10 @@ class Client:
 
         except KeyboardInterrupt:
             print("caught keyboard interrupt, exiting")
+            addToLog(f'[{curr_time}] : Caught Keyboard Interrupt')
             self.sock.close()
+            addToLog(f'[{curr_time}] : Socket Closed')
+            addToLog(f'[{curr_time}] : Terminated Client')
             writeLog()
             os._exit(0)
         
