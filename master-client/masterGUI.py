@@ -61,6 +61,13 @@ def launchattack():
         time.sleep(1)
         send.startattk()
 
+def launchattack2():
+    if connected == True:
+        send.attktype = 2
+        send.changeattk()
+        time.sleep(1)
+        send.startattk()
+
 def stopattack():
     if connected == True:
         send.stopattk()
@@ -124,10 +131,9 @@ for i in range(2):
         elif j == 2:
             frame.grid(row=i, column=j)
             frame.config(highlightthickness=0, borderwidth=0, bg="blue")
-            img = tk.PhotoImage(file="Art/cpscArt.png")
-            pic = tk.Canvas(master=frame, bg="blue", highlightthickness=0, relief=tk.FLAT, width=200, height=200)
-            pic.pack()
-            pic.create_image(30, 2, anchor=tk.NW, image=img)
+            img = tk.PhotoImage(file="Art/cpscart4.png")
+            button = tk.Button(master=frame, image=img, bg="blue", highlightthickness=0, borderwidth=0, command=launchattack2)
+            button.pack()
 
 scroll = tk.Scrollbar(master=frame_b)
 scroll.pack(side=tk.RIGHT, fill=tk.Y)
