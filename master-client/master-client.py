@@ -44,6 +44,7 @@ stopattk: ; Terminates attack if it is being executed\ndisconnect: ; Disconnects
     def run(self):
         
         while True:
+            time.sleep(2)
             self.showcommands()
             print('\nEnter Command: ')
             sys.stdout.flush()
@@ -179,7 +180,7 @@ class Receive(threading.Thread):
                     print("No bots connected")
                     curr_time = str(int(time.time()))
                     addToLog(f'[{curr_time}] : Botlist Recieved: No bots connected')
-                    
+
 
             else:
                 print(
@@ -237,9 +238,9 @@ class Client:
     def set_authenticated(self) -> None:
         self.authenticated = True
         print('Successfully authorized')
-        if self.type == 'master':
-            send = Send(self.sock)
-            send.start()
+        #if self.type == 'master':
+            #send = Send(self.sock)
+            #send.start()
 
         return
 
