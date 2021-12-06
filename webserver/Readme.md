@@ -1,5 +1,8 @@
 README: Target Webserver + Website
+
 Authors: Brody Long
+
+*NOTE - Due to size limits on Github, the media files for the webserver could not be included in the repo.*
 
 The webserver is a basic implementation of the built in http.server library. It is set up to handle simple GET and POST requests
 in order to serve files and media playback to connected users, and to recieve and process comments inputted by connected users.
