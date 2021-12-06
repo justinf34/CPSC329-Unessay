@@ -81,7 +81,7 @@ def addComment(newComment):
         except JSONDecodeError: 
             #Create a new dictionary in the case a valid JSON object cannot be created
             comment_dict = dict()
-        # newComment = [Username, comment, rating, path, ip, timestamp] + CPU Usage warning (optional)
+        # newComment = [Username, comment, rating, path, ip, timestamp]
         if comment_dict.get(newComment[0]): 
             #Check if the user commenting is already in the dictionary
             #If so add the comment to this key
