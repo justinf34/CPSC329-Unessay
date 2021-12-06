@@ -58,13 +58,14 @@
 
   <video id=example-video width=600 height=300 class="video-js vjs-default-skin" controls="true"> </video>
 
+  <!-- This video was sourced from: https://pixabay.com/videos/world-earth-nasa-planet-globe-2/ -->
   <script src="video.js"></script>
   <script>
     var player = videojs('example-video');
     player.src({ src: './files/video/earth.mp4', type: 'video/mp4'});
     player.play();
   </script>
-  
+
   <a href="./files/video/earth.mp4" download>
     <button class="button">Download This Video</button>
   </a>
